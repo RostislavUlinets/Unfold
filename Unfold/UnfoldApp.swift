@@ -11,7 +11,7 @@ import SwiftUI
 struct UnfoldApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AuthPageView()
         }
     }
 }
