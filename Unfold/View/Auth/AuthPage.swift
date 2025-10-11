@@ -1,43 +1,47 @@
 import SwiftUI
 
+enum AuthMode {
+    case login
+    case signup
+}
+
 struct AuthPageView: View {
-    
+    @State var authMode: AuthMode = .login
+
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
                 Color.authBackground
                     .ignoresSafeArea()
-                
-                VStack() {
-                    VStack() {
-                        Spacer()
-                        Text("Hello & Welcome!")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(.white)
-                        Spacer()
-                    }
+
+                VStack(spacing: 0) {
+                    Spacer()
+                    Text("Hello & Welcome!")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.bottom, 40)
                     
+                    Spacer()
+
                     VStack(spacing: 40) {
-                        AuthHeaderView()
-                        
-                        AuthFormView(parentSize: geometry.size)
-                        
-                        Spacer()
+                        AuthHeaderView(selectedMode: $authMode)
+                        AuthFormView(selectedMode: $authMode, parentSize: geometry.size)
                     }
                     .padding(.top)
-                    .frame(width: geometry.size.width,
-                           height: geometry.size.height * 0.6,
-                           alignment: .top)
+                    .frame(maxWidth: .infinity)
                     .background(
                         Color.white
-                            .clipShape(RoundedCorner(radius: 32, corners: [.topLeft, .topRight]))
-                            .edgesIgnoringSafeArea(.bottom)
+                            .clipShape(
+                                RoundedCorner(
+                                    radius: 32,
+                                    corners: [.topLeft, .topRight]
+                                )
+                            )
                     )
                     
-                    
                 }
-                
-                
+                .ignoresSafeArea(edges: .bottom)
+                .animation(.easeInOut(duration: 0.3), value: authMode)
             }
         }
     }
@@ -46,7 +50,7 @@ struct AuthPageView: View {
 struct RoundedCorner: Shape {
     var radius: CGFloat = 25.0
     var corners: UIRectCorner = .allCorners
-    
+
     func path(in rect: CGRect) -> Path {
         Path(
             UIBezierPath(

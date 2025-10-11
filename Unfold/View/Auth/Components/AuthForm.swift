@@ -3,25 +3,30 @@ import SwiftUI
 struct AuthFormView: View {
     @State private var email: String = ""
     @State private var password: String = ""
-    
+    @State private var passwordConfirmation: String = ""
+
+    @Binding var selectedMode: AuthMode
+
     let parentSize: CGSize
 
     var body: some View {
         VStack {
-            
+
             Text("Email")
                 .font(.headline)
                 .foregroundColor(.authBackground)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
             TextField("Email", text: $email)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
                 .padding()
                 .overlay(
                     RoundedRectangle(cornerRadius: 24)
                         .stroke(Color.authBackground, lineWidth: 1)
                 )
                 .padding(.horizontal)
-            
+
             Text("Password")
                 .font(.headline)
                 .foregroundColor(.authBackground)
@@ -34,35 +39,59 @@ struct AuthFormView: View {
                         .stroke(Color.authBackground, lineWidth: 1)
                 )
                 .padding(.horizontal)
-            
+
+            if selectedMode == AuthMode.signup {
+
+                Text("Confirm Password")
+                    .font(.headline)
+                    .foregroundColor(.authBackground)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                SecureField("Re-enter password", text: $passwordConfirmation)
+                    .padding()
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(Color.authBackground, lineWidth: 1)
+                    )
+                    .padding(.horizontal)
+
+            }
+
             Button(action: {
-                            // Handle login action here
-                        }) {
-                            Text("Login")
-                                .foregroundColor(.white)
-                                .font(.headline)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.authBackground)
-                                .cornerRadius(24)
-                        }
-                        .frame(width: parentSize.width * 0.6, height: 55)
-                        .padding(.horizontal)
-                        .padding(.top, 10)
-            
-            Text("Or Sign Up Here")
+                // Handle login action here
+            }) {
+                Text(
+                    selectedMode == AuthMode.login ? "Login" : "Sign Up"
+                )
+                .foregroundColor(.white)
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.authBackground)
+                .cornerRadius(24)
+            }
+            .frame(width: parentSize.width * 0.6, height: 55)
+            .padding(.horizontal)
+            .padding(.top, 10)
+
+            VStack(spacing: 4) {
+                Text(
+                    selectedMode == .login
+                        ? "Don't have an account?"
+                        : "Already have an account?"
+                )
                 .font(.footnote)
                 .foregroundColor(.authBackground)
-                .padding(.horizontal)
-            
-            Spacer()
-            
-            Text("Terms & Conditions")
-                .font(.caption)
-                .foregroundColor(.authBackground)
-                .padding(.horizontal)
-            
-            
+                .padding(.bottom, 30)
+
+                Text("Terms & Conditions")
+                    .font(.caption)
+                    .foregroundColor(.authBackground)
+                    .underline()
+            }
+            .padding(.top, 10)
+
         }
+        .padding(.bottom, 20)
     }
 }

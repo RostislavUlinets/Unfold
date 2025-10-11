@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AuthHeaderView: View {
-    @State private var selectedTab: String = "Login"
+    @Binding var selectedMode: AuthMode
 
     var body: some View {
         HStack {
@@ -12,10 +12,10 @@ struct AuthHeaderView: View {
                     .font(.headline)
                     .foregroundColor(.authBackground)
                     .onTapGesture {
-                        selectedTab = "Login"
+                        selectedMode = AuthMode.login
                     }
                 Rectangle()
-                    .fill(selectedTab == "Login" ? Color.authBackground : Color.clear)
+                    .fill(selectedMode == AuthMode.login ? Color.authBackground : Color.clear)
                     .frame(height: 2)
                     .padding(.horizontal)
             }
@@ -27,10 +27,10 @@ struct AuthHeaderView: View {
                     .font(.headline)
                     .foregroundColor(.authBackground)
                     .onTapGesture {
-                        selectedTab = "Sign Up"
+                        selectedMode = AuthMode.signup
                     }
                 Rectangle()
-                    .fill(selectedTab == "Sign Up" ? Color.authBackground : Color.clear)
+                    .fill(selectedMode == AuthMode.signup ? Color.authBackground : Color.clear)
                     .frame(height: 2)
                     .padding(.horizontal)
             }
