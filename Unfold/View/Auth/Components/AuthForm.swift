@@ -7,6 +7,8 @@ struct AuthFormView: View {
 
     @Binding var selectedMode: AuthMode
 
+    @EnvironmentObject var controller: AuthController
+
     let parentSize: CGSize
 
     var body: some View {
@@ -58,21 +60,48 @@ struct AuthFormView: View {
             }
 
             Button(action: {
-                // Handle login action here
+                Task {
+                    if selectedMode == .login {
+                        await controller.login(email: email, password: password)
+                    } else {
+                        await  controller.signup(
+                            email: email,
+                            password: password,
+                            verifyPassword: passwordConfirmation
+                        )
+                    }
+                }
+                
+                
             }) {
-                Text(
-                    selectedMode == AuthMode.login ? "Login" : "Sign Up"
-                )
-                .foregroundColor(.white)
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.authBackground)
-                .cornerRadius(24)
+                if controller.isLoading {
+                    ProgressView()
+                        .tint(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.authBackground)
+                        .cornerRadius(24)
+                } else {
+                    Text(selectedMode == .login ? "Login" : "Sign Up")
+                        .foregroundColor(.white)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.authBackground)
+                        .cornerRadius(24)
+                }
             }
             .frame(width: parentSize.width * 0.6, height: 55)
             .padding(.horizontal)
             .padding(.top, 10)
+
+            if let error = controller.errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 8)
+            }
 
             VStack(spacing: 4) {
                 Text(

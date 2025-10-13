@@ -8,6 +8,8 @@ enum AuthMode {
 struct AuthPageView: View {
     @State var authMode: AuthMode = .login
 
+    @StateObject private var controller = AuthController()
+
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
@@ -20,12 +22,15 @@ struct AuthPageView: View {
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.bottom, 40)
-                    
+
                     Spacer()
 
                     VStack(spacing: 40) {
                         AuthHeaderView(selectedMode: $authMode)
-                        AuthFormView(selectedMode: $authMode, parentSize: geometry.size)
+                        AuthFormView(
+                            selectedMode: $authMode,
+                            parentSize: geometry.size
+                        ).environmentObject(controller)
                     }
                     .padding(.top)
                     .frame(maxWidth: .infinity)
@@ -38,7 +43,7 @@ struct AuthPageView: View {
                                 )
                             )
                     )
-                    
+
                 }
                 .ignoresSafeArea(edges: .bottom)
                 .animation(.easeInOut(duration: 0.3), value: authMode)
@@ -63,5 +68,5 @@ struct RoundedCorner: Shape {
 }
 
 #Preview {
-    AuthPageView()
+    AuthPageView().environmentObject(AuthController())
 }
