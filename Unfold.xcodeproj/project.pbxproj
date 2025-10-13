@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		62DB36072E9AE74100A1B9A0 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 62DB36062E9AE74100A1B9A0 /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		629BCAE02E98284C003C3E35 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				62DB36072E9AE74100A1B9A0 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 				629BCAD42E98284B003C3E35 /* Unfold */,
 				629BCAE22E98284C003C3E35 /* UnfoldTests */,
 				629BCAEC2E98284C003C3E35 /* UnfoldUITests */,
+				62DB36052E9AE74100A1B9A0 /* Frameworks */,
 				629BCAD32E98284B003C3E35 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +96,13 @@
 				629BCAE92E98284C003C3E35 /* UnfoldUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		62DB36052E9AE74100A1B9A0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +125,7 @@
 			);
 			name = Unfold;
 			packageProductDependencies = (
+				62DB36062E9AE74100A1B9A0 /* Supabase */,
 			);
 			productName = Unfold;
 			productReference = 629BCAD22E98284B003C3E35 /* Unfold.app */;
@@ -195,6 +209,9 @@
 			);
 			mainGroup = 629BCAC92E98284B003C3E35;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				62DB36002E9ADE6500A1B9A0 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 629BCAD32E98284B003C3E35 /* Products */;
 			projectDirPath = "";
@@ -395,6 +412,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8FCUSTJ3Y6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -407,7 +425,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.rostyslavulynets.unfold.Unfold;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rostyslavulynets.unfold;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -422,6 +440,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8FCUSTJ3Y6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -434,7 +453,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.rostyslavulynets.unfold.Unfold;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rostyslavulynets.unfold;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -550,6 +569,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		62DB36002E9ADE6500A1B9A0 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		62DB36062E9AE74100A1B9A0 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 62DB36002E9ADE6500A1B9A0 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 629BCACA2E98284B003C3E35 /* Project object */;
 }
