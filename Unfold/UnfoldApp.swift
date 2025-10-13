@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct UnfoldApp: App {
+    @StateObject private var authController = AuthController()
+
     var body: some Scene {
         WindowGroup {
-            AuthPageView()
+            RootView()
+                .environmentObject(authController)
         }
     }
 }

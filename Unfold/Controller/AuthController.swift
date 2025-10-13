@@ -1,4 +1,3 @@
-import Combine
 import Supabase
 import SwiftUI
 
@@ -7,9 +6,9 @@ class AuthController: ObservableObject {
     @Published var isAuthenticated = false
     @Published var isLoading = false
     @Published var errorMessage: String?
-    
-    
+
     let client: SupabaseClient
+    private var authListener: AuthStateChangeListenerRegistration?
 
     init() {
         let urlString = ProcessInfo.processInfo.environment["SUPABASE_URL"]
@@ -20,17 +19,49 @@ class AuthController: ObservableObject {
             ?? ""
 
         guard let url = URL(string: urlString), !key.isEmpty else {
-            fatalError("❌ Missing or invalid Supabase configuration. Check environment variables or Info.plist")
+            fatalError("❌ Missing or invalid Supabase configuration.")
         }
 
-        self.client = SupabaseClient(
-            supabaseURL: url,
-            supabaseKey: key
-        )
+        self.client = SupabaseClient(supabaseURL: url, supabaseKey: key)
+
+        Task {
+            await listenForAuthChanges()
+        }
     }
 
+    // MARK: - Auth Listener
+    private func listenForAuthChanges() async {
+        print("👂 Listening for auth state changes...")
+        authListener = await client.auth.onAuthStateChange { [weak self] event, session in
+            guard let self = self else { return }
+
+           Task { @MainActor in
+                switch event {
+                case .initialSession:
+                    print("🔐 Initial session loaded:", session?.user.email ?? "no session")
+                    self.isAuthenticated = (session != nil)
+
+                case .signedIn:
+                    print("✅ User signed in:", session?.user.email ?? "unknown")
+                    self.isAuthenticated = true
+
+                case .signedOut:
+                    print("🚪 User signed out")
+                    self.isAuthenticated = false
+
+                case .tokenRefreshed:
+                    print("🔄 Token refreshed")
+
+                default:
+                    break
+                }
+            }
+        }
+    }
+
+    // MARK: - Manual Actions
     func login(email: String, password: String) async {
-        guard checkCredentials(email: email, password: password) else {
+        guard !email.isEmpty, !password.isEmpty else {
             errorMessage = "Please fill in all fields"
             return
         }
@@ -39,20 +70,18 @@ class AuthController: ObservableObject {
         errorMessage = nil
 
         do {
-            let session = try await client.auth.signIn(email: email, password: password)
-            print("✅ Logged in as:", session.user.email ?? "unknown user")
-            isAuthenticated = true
+            try await client.auth.signIn(email: email, password: password)
+            // No need to set isAuthenticated manually — listener handles it
         } catch {
-            print("❌ Login failed:", error)
+            print("❌ Login failed:", error.localizedDescription)
             errorMessage = error.localizedDescription
-            isAuthenticated = false
         }
 
         isLoading = false
     }
 
     func signup(email: String, password: String, verifyPassword: String) async {
-        guard checkCredentials(email: email, password: password) else {
+        guard !email.isEmpty, !password.isEmpty else {
             errorMessage = "Please fill in all fields"
             return
         }
@@ -66,19 +95,26 @@ class AuthController: ObservableObject {
         errorMessage = nil
 
         do {
-            let user = try await client.auth.signUp(email: email, password: password)
-            print("✅ Signed up user:", user.user.email ?? "unknown email")
-            isAuthenticated = true
+            try await client.auth.signUp(email: email, password: password)
         } catch {
-            print("❌ Signup failed:", error)
+            print("❌ Signup failed:", error.localizedDescription)
             errorMessage = error.localizedDescription
-            isAuthenticated = false
         }
 
         isLoading = false
     }
 
-    private func checkCredentials(email: String, password: String) -> Bool {
-        !email.isEmpty && !password.isEmpty
+    func logout() async {
+        do {
+            try await client.auth.signOut()
+        } catch {
+            print("❌ Logout failed:", error.localizedDescription)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    deinit {
+        // Optionally unsubscribe when controller is deallocated
+        authListener?.remove()
     }
 }

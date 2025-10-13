@@ -66,7 +66,3 @@ struct RoundedCorner: Shape {
         )
     }
 }
-
-#Preview {
-    AuthPageView().environmentObject(AuthController())
-}
