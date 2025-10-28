@@ -1,14 +1,12 @@
 import SwiftUI
 
 enum AuthMode {
-    case login
-    case signup
+    case login, signup
 }
 
 struct AuthPageView: View {
-    @State var authMode: AuthMode = .login
-
-    @StateObject private var controller = AuthController()
+    @EnvironmentObject private var controller: AuthController
+    @State private var authMode: AuthMode = .login
 
     var body: some View {
         GeometryReader { geometry in
@@ -18,6 +16,7 @@ struct AuthPageView: View {
 
                 VStack(spacing: 0) {
                     Spacer()
+
                     Text("Hello & Welcome!")
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(.white)
@@ -25,44 +24,25 @@ struct AuthPageView: View {
 
                     Spacer()
 
-                    VStack(spacing: 40) {
-                        AuthHeaderView(selectedMode: $authMode)
-                        AuthFormView(
-                            selectedMode: $authMode,
-                            parentSize: geometry.size
-                        ).environmentObject(controller)
-                    }
-                    .padding(.top)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        Color.white
-                            .clipShape(
-                                RoundedCorner(
-                                    radius: 32,
-                                    corners: [.topLeft, .topRight]
-                                )
-                            )
-                    )
-
+                    authFormContainer(parentSize: geometry.size)
                 }
                 .ignoresSafeArea(edges: .bottom)
-                .animation(.easeInOut(duration: 0.3), value: authMode)
             }
         }
+        .animation(.smooth(duration: 0.3), value: authMode)
     }
-}
 
-struct RoundedCorner: Shape {
-    var radius: CGFloat = 25.0
-    var corners: UIRectCorner = .allCorners
-
-    func path(in rect: CGRect) -> Path {
-        Path(
-            UIBezierPath(
-                roundedRect: rect,
-                byRoundingCorners: corners,
-                cornerRadii: CGSize(width: radius, height: radius)
-            ).cgPath
+    private func authFormContainer(parentSize: CGSize) -> some View {
+        VStack(spacing: 40) {
+            AuthHeaderView(selectedMode: $authMode)
+            AuthFormView(selectedMode: $authMode, parentSize: parentSize)
+                .environmentObject(controller)
+        }
+        .padding(.top)
+        .frame(maxWidth: .infinity)
+        .background(
+            UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32)
+                .fill(Color.white)
         )
     }
 }
