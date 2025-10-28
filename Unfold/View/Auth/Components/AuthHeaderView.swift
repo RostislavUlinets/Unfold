@@ -4,38 +4,30 @@ struct AuthHeaderView: View {
     @Binding var selectedMode: AuthMode
 
     var body: some View {
-        HStack {
+        HStack(spacing: 0) {
             Spacer()
-            
-            VStack {
-                Text("Login")
-                    .font(.headline)
-                    .foregroundColor(.authBackground)
-                    .onTapGesture {
-                        selectedMode = AuthMode.login
-                    }
-                Rectangle()
-                    .fill(selectedMode == AuthMode.login ? Color.authBackground : Color.clear)
-                    .frame(height: 2)
-                    .padding(.horizontal)
-            }
-            
+            tabButton(for: .login)
             Spacer()
-            
-            VStack {
-                Text("Sign Up")
-                    .font(.headline)
-                    .foregroundColor(.authBackground)
-                    .onTapGesture {
-                        selectedMode = AuthMode.signup
-                    }
-                Rectangle()
-                    .fill(selectedMode == AuthMode.signup ? Color.authBackground : Color.clear)
-                    .frame(height: 2)
-                    .padding(.horizontal)
-            }
-            
+            tabButton(for: .signup)
             Spacer()
         }
+    }
+
+    private func tabButton(for mode: AuthMode) -> some View {
+        VStack(spacing: 8) {
+            Button {
+                selectedMode = mode
+            } label: {
+                Text(mode == .login ? "Login" : "Sign Up")
+                    .font(.headline)
+                    .foregroundColor(.authBackground)
+            }
+
+            Rectangle()
+                .fill(selectedMode == mode ? Color.authBackground : Color.clear)
+                .frame(height: 2)
+                .padding(.horizontal)
+        }
+        .animation(.smooth(duration: 0.2), value: selectedMode)
     }
 }
