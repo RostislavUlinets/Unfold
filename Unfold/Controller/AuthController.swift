@@ -1,120 +1,180 @@
-import Supabase
 import SwiftUI
 
 @MainActor
-class AuthController: ObservableObject {
+final class AuthController: ObservableObject {
+
+    /// Indicates whether a user is currently authenticated
     @Published var isAuthenticated = false
+
+    /// Indicates whether an authentication operation is in progress
     @Published var isLoading = false
+
+    /// Contains error message from last failed authentication operation
     @Published var errorMessage: String?
 
-    let client: SupabaseClient
-    private var authListener: AuthStateChangeListenerRegistration?
+    /// Current authenticated user (nil if not authenticated)
+    @Published var currentUser: User?
 
-    init() {
-        let urlString = ProcessInfo.processInfo.environment["SUPABASE_URL"]
-            ?? Bundle.main.infoDictionary?["SUPABASE_URL"] as? String
-            ?? ""
-        let key = ProcessInfo.processInfo.environment["SUPABASE_KEY"]
-            ?? Bundle.main.infoDictionary?["SUPABASE_KEY"] as? String
-            ?? ""
 
-        guard let url = URL(string: urlString), !key.isEmpty else {
-            fatalError("❌ Missing or invalid Supabase configuration.")
-        }
+    /// Authentication service (exposed for dependency injection to related controllers)
+    let authService: AuthServiceProtocol
 
-        self.client = SupabaseClient(supabaseURL: url, supabaseKey: key)
 
-        Task {
-            await listenForAuthChanges()
+    private var authListenerToken: AuthStateListenerToken?
+
+
+    /// Initialize AuthController with an authentication service
+    /// - Parameter authService: Service conforming to AuthServiceProtocol
+    init(authService: AuthServiceProtocol) {
+        self.authService = authService
+        setupAuthStateListener()
+    }
+
+    deinit {
+        if let token = authListenerToken {
+            authService.removeAuthStateListener(token)
         }
     }
 
-    // MARK: - Auth Listener
-    private func listenForAuthChanges() async {
-        print("👂 Listening for auth state changes...")
-        authListener = await client.auth.onAuthStateChange { [weak self] event, session in
+
+    /// Authenticate user with email and password
+    /// - Parameters:
+    ///   - email: User's email address
+    ///   - password: User's password
+    func login(email: String, password: String) async {
+        // Validate inputs
+        guard validateLoginInputs(email: email, password: password) else {
+            return
+        }
+
+        await performAuthOperation {
+            try await self.authService.signIn(email: email, password: password)
+        }
+    }
+
+    /// Register a new user with email and password
+    /// - Parameters:
+    ///   - email: User's email address
+    ///   - password: User's password
+    ///   - verifyPassword: Password confirmation
+    func signup(email: String, password: String, verifyPassword: String) async {
+        // Validate inputs
+        guard validateSignupInputs(email: email, password: password, verifyPassword: verifyPassword) else {
+            return
+        }
+
+        await performAuthOperation {
+            try await self.authService.signUp(email: email, password: password)
+        }
+    }
+
+    /// Sign out the current user
+    func logout() async {
+        await performAuthOperation {
+            try await self.authService.signOut()
+        }
+    }
+
+    /// Request a password reset email
+    /// - Parameter email: User's email address
+    func resetPassword(email: String) async {
+        guard !email.isEmpty else {
+            errorMessage = Strings.Auth.fillAllFields
+            return
+        }
+
+        await performAuthOperation {
+            try await self.authService.resetPassword(email: email)
+        }
+    }
+
+
+    /// Set up authentication state listener
+    private func setupAuthStateListener() {
+        authListenerToken = authService.addAuthStateListener { [weak self] isAuthenticated in
             guard let self = self else { return }
 
-           Task { @MainActor in
-                switch event {
-                case .initialSession:
-                    print("🔐 Initial session loaded:", session?.user.email ?? "no session")
-                    self.isAuthenticated = (session != nil)
+            Task { @MainActor in
+                self.isAuthenticated = isAuthenticated
+                self.isLoading = false
 
-                case .signedIn:
-                    print("✅ User signed in:", session?.user.email ?? "unknown")
-                    self.isAuthenticated = true
-
-                case .signedOut:
-                    print("🚪 User signed out")
-                    self.isAuthenticated = false
-
-                case .tokenRefreshed:
-                    print("🔄 Token refreshed")
-
-                default:
-                    break
+                // Fetch user info if authenticated
+                if isAuthenticated {
+                    await self.fetchCurrentUser()
+                } else {
+                    self.currentUser = nil
                 }
             }
         }
     }
 
-    // MARK: - Manual Actions
-    func login(email: String, password: String) async {
-        guard !email.isEmpty, !password.isEmpty else {
-            errorMessage = "Please fill in all fields"
+    /// Fetch current authenticated user information
+    private func fetchCurrentUser() async {
+        guard let email = await authService.getCurrentUserEmail() else {
             return
         }
 
+        // Create user model from available data
+        // In a real app, you might fetch additional user data from a database
+        currentUser = User(
+            id: email, // Use email as temporary ID
+            email: email,
+            displayName: nil,
+            profilePictureURL: nil,
+            createdAt: Date()
+        )
+    }
+
+    /// Perform an authentication operation with error handling
+    /// - Parameter operation: Async throwing operation to perform
+    private func performAuthOperation(_ operation: @escaping () async throws -> Void) async {
         isLoading = true
         errorMessage = nil
 
         do {
-            try await client.auth.signIn(email: email, password: password)
-            // No need to set isAuthenticated manually — listener handles it
+            try await operation()
         } catch {
-            print("❌ Login failed:", error.localizedDescription)
             errorMessage = error.localizedDescription
+            #if DEBUG
+            print("❌ [Auth] Operation failed: \(error.localizedDescription)")
+            #endif
         }
 
         isLoading = false
     }
 
-    func signup(email: String, password: String, verifyPassword: String) async {
+    /// Validate login inputs
+    private func validateLoginInputs(email: String, password: String) -> Bool {
         guard !email.isEmpty, !password.isEmpty else {
-            errorMessage = "Please fill in all fields"
-            return
+            errorMessage = Strings.Auth.fillAllFields
+            return false
+        }
+        return true
+    }
+
+    /// Validate signup inputs
+    private func validateSignupInputs(email: String, password: String, verifyPassword: String) -> Bool {
+        guard !email.isEmpty, !password.isEmpty else {
+            errorMessage = Strings.Auth.fillAllFields
+            return false
         }
 
         guard password == verifyPassword else {
-            errorMessage = "Passwords do not match"
-            return
+            errorMessage = Strings.Auth.passwordsDoNotMatch
+            return false
         }
 
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            try await client.auth.signUp(email: email, password: password)
-        } catch {
-            print("❌ Signup failed:", error.localizedDescription)
-            errorMessage = error.localizedDescription
-        }
-
-        isLoading = false
-    }
-
-    func logout() async {
-        do {
-            try await client.auth.signOut()
-        } catch {
-            print("❌ Logout failed:", error.localizedDescription)
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    deinit {
-        // Optionally unsubscribe when controller is deallocated
-        authListener?.remove()
+        return true
     }
 }
+
+
+extension AuthController {
+    /// Create an AuthController with default Supabase service
+    /// - Returns: Configured AuthController instance
+    static func createDefault() -> AuthController {
+        let authService = SupabaseAuthService.createFromEnvironment()
+        return AuthController(authService: authService)
+    }
+}
+
