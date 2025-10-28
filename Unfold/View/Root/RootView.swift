@@ -3,7 +3,6 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject var auth: AuthController
     @State private var showContent = false
-    @State private var minimumDelayPassed = false
 
     var body: some View {
         ZStack {
@@ -13,33 +12,30 @@ struct RootView: View {
             Group {
                 if !showContent {
                     SplashView()
-                        .transition(.opacity.combined(with: .scale))
                 } else if auth.isAuthenticated {
-                    HomeView()
-                        .transition(.opacity.combined(with: .scale))
+                    HomePageView()
+                        .environmentObject(auth)
                 } else {
                     AuthPageView()
-                        .transition(.opacity.combined(with: .scale))
                 }
             }
-            .animation(.easeInOut(duration: 0.4), value: showContent)
-            .animation(.easeInOut(duration: 0.4), value: auth.isAuthenticated)
         }
+        .animation(.smooth(duration: 0.4), value: showContent)
+        .animation(.smooth(duration: 0.4), value: auth.isAuthenticated)
         .task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-            minimumDelayPassed = true
-            updateShowContentIfReady()
-        }
-        .onChange(of: auth.isLoading) { _ in
-            updateShowContentIfReady()
-        }
-    }
+            // Show splash for minimum 2 seconds while auth initializes
+            async let splashDelay: Void = {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }()
 
-    private func updateShowContentIfReady() {
-        if minimumDelayPassed && !auth.isLoading {
-            withAnimation {
-                showContent = true
+            // Wait for auth to load
+            while auth.isLoading {
+                try? await Task.sleep(nanoseconds: 100_000_000) // Poll every 0.1s
             }
+
+            // Ensure both conditions are met
+            await splashDelay
+            showContent = true
         }
     }
 }
