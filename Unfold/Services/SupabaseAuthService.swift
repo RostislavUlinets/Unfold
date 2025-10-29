@@ -28,7 +28,101 @@ final class SupabaseAuthService: AuthServiceProtocol {
     }
 
     func resetPassword(email: String) async throws {
-        try await client.auth.resetPasswordForEmail(email)
+        guard let redirectURL = URL(string: "unfold://reset-password") else {
+            throw NSError(
+                domain: "SupabaseAuthService",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid redirect URL configuration"]
+            )
+        }
+
+        try await client.auth.resetPasswordForEmail(
+            email,
+            redirectTo: redirectURL
+        )
+
+        #if DEBUG
+        print("📧 [Auth] Password reset email sent to: \(email)")
+        print("   - Redirect URL: \(redirectURL.absoluteString)")
+        #endif
+    }
+
+    func verifyTokenAndUpdatePassword(token: String, newPassword: String) async throws {
+        // Simple approach: try different methods until one works
+
+        #if DEBUG
+        print("🔐 [Auth] Verifying token and updating password")
+        print("   Token: \(token.prefix(10))...")
+        #endif
+
+        var lastError: Error?
+
+        // Method 1: Try as tokenHash
+        do {
+            #if DEBUG
+            print("   Trying method 1: tokenHash verification")
+            #endif
+
+            let response = try await client.auth.verifyOTP(
+                tokenHash: token,
+                type: .recovery
+            )
+
+            #if DEBUG
+            print("✅ [Auth] Token verified (method 1)")
+            print("   User: \(response.user.email ?? "unknown")")
+            #endif
+
+            // Update password
+            try await client.auth.update(user: UserAttributes(password: newPassword))
+
+            #if DEBUG
+            print("✅ [Auth] Password updated successfully")
+            #endif
+            return
+        } catch {
+            lastError = error
+            #if DEBUG
+            print("   Method 1 failed: \(error.localizedDescription)")
+            #endif
+        }
+
+        // Method 2: Try using token directly with email (empty)
+        do {
+            #if DEBUG
+            print("   Trying method 2: email OTP verification")
+            #endif
+
+            let response = try await client.auth.verifyOTP(
+                email: "",
+                token: token,
+                type: .recovery
+            )
+
+            #if DEBUG
+            print("✅ [Auth] Token verified (method 2)")
+            print("   User: \(response.user.email ?? "unknown")")
+            #endif
+
+            // Update password
+            try await client.auth.update(user: UserAttributes(password: newPassword))
+
+            #if DEBUG
+            print("✅ [Auth] Password updated successfully")
+            #endif
+            return
+        } catch {
+            lastError = error
+            #if DEBUG
+            print("   Method 2 failed: \(error.localizedDescription)")
+            #endif
+        }
+
+        // If all methods failed, throw the last error
+        #if DEBUG
+        print("❌ [Auth] All verification methods failed")
+        #endif
+        throw lastError ?? NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to verify token"])
     }
 
     func getCurrentUserEmail() async -> String? {

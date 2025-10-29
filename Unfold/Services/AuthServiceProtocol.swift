@@ -5,6 +5,7 @@ protocol AuthServiceProtocol {
     func signUp(email: String, password: String) async throws
     func signOut() async throws
     func resetPassword(email: String) async throws
+    func verifyTokenAndUpdatePassword(token: String, newPassword: String) async throws
     func getCurrentUserEmail() async -> String?
     func isAuthenticated() async -> Bool
     func addAuthStateListener(_ handler: @escaping (Bool) -> Void) -> AuthStateListenerToken
