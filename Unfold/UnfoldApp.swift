@@ -15,13 +15,62 @@ struct UnfoldApp: App {
     /// Created using factory method for proper dependency injection
     @StateObject private var authController = AuthController.createDefault()
 
+    /// State to manage password reset flow from deep links
+    @StateObject private var resetTokenHolder = PasswordResetTokenHolder()
+
     // MARK: - Body
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(authController)
+                .environmentObject(resetTokenHolder)
+                .onOpenURL { url in
+                    handleDeepLink(url)
+                }
         }
     }
+
+    // MARK: - Deep Link Handling
+
+    /// Handles incoming deep links
+    /// - Parameter url: The deep link URL to process
+    private func handleDeepLink(_ url: URL) {
+        #if DEBUG
+        print("🔗 [DeepLink] Received URL: \(url)")
+        #endif
+
+        let linkType = DeepLinkParser.parse(url)
+
+        switch linkType {
+        case .passwordReset(let token):
+            guard token.isValid else {
+                #if DEBUG
+                print("❌ [DeepLink] Invalid password reset token")
+                #endif
+                return
+            }
+
+            #if DEBUG
+            print("✅ [DeepLink] Valid password reset link detected")
+            #endif
+
+            // Store the token to trigger password reset confirmation view
+            resetTokenHolder.token = token
+
+        case .unknown:
+            #if DEBUG
+            print("⚠️ [DeepLink] Unknown or unsupported deep link type")
+            #endif
+        }
+    }
+}
+
+// MARK: - Password Reset Token Holder
+
+/// Observable object to hold password reset token that can be cleared
+@MainActor
+class PasswordResetTokenHolder: ObservableObject {
+    @Published var token: DeepLinkParser.PasswordResetToken?
 }
 
