@@ -1,6 +1,5 @@
 import Foundation
 
-/// Controller for managing password reset confirmation flow
 @MainActor
 final class PasswordResetConfirmationController: ObservableObject {
 
@@ -14,29 +13,25 @@ final class PasswordResetConfirmationController: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let authService: AuthServiceProtocol
+    private let authController: AuthController
     private let resetToken: DeepLinkParser.PasswordResetToken
 
     // MARK: - Computed Properties
 
-    /// Real-time password validation error
     var passwordValidationError: String? {
         guard !password.isEmpty else { return nil }
         return PasswordValidator.validationMessage(for: password)
     }
 
-    /// Whether passwords match
     var passwordsMatch: Bool {
         guard !password.isEmpty && !confirmPassword.isEmpty else { return false }
         return PasswordValidator.passwordsMatch(password, confirmPassword)
     }
 
-    /// Password strength
     var passwordStrength: PasswordValidator.Strength {
         PasswordValidator.strength(of: password)
     }
 
-    /// Whether the form can be submitted
     var canSubmit: Bool {
         PasswordValidator.isValid(password) &&
         passwordsMatch &&
@@ -45,14 +40,13 @@ final class PasswordResetConfirmationController: ObservableObject {
 
     // MARK: - Initialization
 
-    init(authService: AuthServiceProtocol, resetToken: DeepLinkParser.PasswordResetToken) {
-        self.authService = authService
+    init(authController: AuthController, resetToken: DeepLinkParser.PasswordResetToken) {
+        self.authController = authController
         self.resetToken = resetToken
     }
 
-    // MARK: - Actions
+    // MARK: - Public Methods
 
-    /// Updates the user's password
     func updatePassword() async {
         guard canSubmit else {
             errorMessage = "Please fix the errors before continuing"
@@ -63,8 +57,7 @@ final class PasswordResetConfirmationController: ObservableObject {
         errorMessage = nil
 
         do {
-            // Simple approach: just try to verify the token and update password
-            try await authService.verifyTokenAndUpdatePassword(
+            try await authController.verifyTokenAndUpdatePassword(
                 token: resetToken.token,
                 newPassword: password
             )
@@ -80,30 +73,35 @@ final class PasswordResetConfirmationController: ObservableObject {
             print("❌ [PasswordReset] Failed to update password: \(error.localizedDescription)")
             #endif
 
-            // Parse specific errors
             errorMessage = parseError(error)
         }
 
         isUpdating = false
     }
 
-    /// Parses error messages into user-friendly text
+    func clearError() {
+        errorMessage = nil
+    }
+
+    // MARK: - Private Methods
+
     private func parseError(_ error: Error) -> String {
         let description = error.localizedDescription.lowercased()
 
-        if description.contains("expired") || description.contains("invalid") {
+        if description.contains("same") || description.contains("different from the old") {
+            return "New password must be different from your current password."
+        } else if description.contains("expired") {
             return "This reset link has expired. Please request a new password reset."
+        } else if description.contains("invalid") || description.contains("token") {
+            return "Invalid or expired reset link. Please request a new password reset."
         } else if description.contains("network") || description.contains("connection") {
             return "Network error. Please check your connection and try again."
-        } else if description.contains("weak") || description.contains("password") {
-            return "Password does not meet requirements. Please try a stronger password."
+        } else if description.contains("weak") {
+            return "Password is too weak. Please use a stronger password."
+        } else if description.contains("password") && description.contains("requirements") {
+            return "Password does not meet requirements. Use at least 8 characters with a special character."
         } else {
-            return "An error occurred. Please try again."
+            return "An error occurred: \(error.localizedDescription)"
         }
-    }
-
-    /// Clears error message
-    func clearError() {
-        errorMessage = nil
     }
 }

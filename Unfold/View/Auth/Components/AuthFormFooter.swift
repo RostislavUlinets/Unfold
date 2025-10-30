@@ -3,7 +3,7 @@ import SwiftUI
 struct AuthFormFooter: View {
 
     let selectedMode: AuthMode
-    let authService: AuthServiceProtocol
+    let authController: AuthController
 
     @Binding var showReset: Bool
 
@@ -16,7 +16,7 @@ struct AuthFormFooter: View {
                 }
                 .foregroundColor(.authBackground)
                 .popover(isPresented: $showReset, arrowEdge: .bottom) {
-                    PasswordResetDialog(authService: authService)
+                    PasswordResetDialog(authController: authController)
                         .presentationCompactAdaptation(.none)
                 }
                 .transition(.opacity)
@@ -34,7 +34,7 @@ struct AuthFormFooter: View {
 #Preview {
     AuthFormFooter(
         selectedMode: .login,
-        authService: SupabaseAuthService.createFromEnvironment(),
+        authController: AuthController.createDefault(),
         showReset: .constant(false)
     )
 }

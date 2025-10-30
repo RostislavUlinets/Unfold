@@ -33,7 +33,7 @@ struct AuthFormView: View {
 
             AuthFormFooter(
                 selectedMode: selectedMode,
-                authService: controller.authService,
+                authController: controller,
                 showReset: $showReset
             )
         }

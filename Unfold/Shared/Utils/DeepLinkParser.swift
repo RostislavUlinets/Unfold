@@ -4,7 +4,7 @@ import Foundation
 struct DeepLinkParser {
 
     /// Simple token structure - just holds whatever we extracted
-    struct PasswordResetToken {
+    struct PasswordResetToken: Equatable {
         let token: String
 
         var isValid: Bool {

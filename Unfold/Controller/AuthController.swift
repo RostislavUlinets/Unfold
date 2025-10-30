@@ -1,82 +1,60 @@
-import SwiftUI
+import Foundation
+import Supabase
 
 @MainActor
 final class AuthController: ObservableObject {
 
-    /// Indicates whether a user is currently authenticated
+    // MARK: - Published Properties
+
     @Published var isAuthenticated = false
-
-    /// Indicates whether an authentication operation is in progress
     @Published var isLoading = false
-
-    /// Contains error message from last failed authentication operation
     @Published var errorMessage: String?
-
-    /// Current authenticated user (nil if not authenticated)
     @Published var currentUser: User?
 
+    // MARK: - Private Properties
 
-    /// Authentication service (exposed for dependency injection to related controllers)
-    let authService: AuthServiceProtocol
+    private let client: SupabaseClient
+    private var supabaseListener: AuthStateChangeListenerRegistration?
 
+    // MARK: - Initialization
 
-    private var authListenerToken: AuthStateListenerToken?
-
-
-    /// Initialize AuthController with an authentication service
-    /// - Parameter authService: Service conforming to AuthServiceProtocol
-    init(authService: AuthServiceProtocol) {
-        self.authService = authService
+    init(client: SupabaseClient) {
+        self.client = client
         setupAuthStateListener()
     }
 
     deinit {
-        if let token = authListenerToken {
-            authService.removeAuthStateListener(token)
-        }
+        supabaseListener?.remove()
     }
 
+    // MARK: - Public Methods
 
-    /// Authenticate user with email and password
-    /// - Parameters:
-    ///   - email: User's email address
-    ///   - password: User's password
     func login(email: String, password: String) async {
-        // Validate inputs
         guard validateLoginInputs(email: email, password: password) else {
             return
         }
 
         await performAuthOperation {
-            try await self.authService.signIn(email: email, password: password)
+            try await self.client.auth.signIn(email: email, password: password)
         }
     }
 
-    /// Register a new user with email and password
-    /// - Parameters:
-    ///   - email: User's email address
-    ///   - password: User's password
-    ///   - verifyPassword: Password confirmation
     func signup(email: String, password: String, verifyPassword: String) async {
-        // Validate inputs
         guard validateSignupInputs(email: email, password: password, verifyPassword: verifyPassword) else {
             return
         }
 
         await performAuthOperation {
-            try await self.authService.signUp(email: email, password: password)
+            try await self.client.auth.signUp(email: email, password: password)
         }
     }
 
-    /// Sign out the current user
     func logout() async {
         await performAuthOperation {
-            try await self.authService.signOut()
+            try await self.client.auth.signOut()
         }
     }
 
-    /// Request a password reset email
-    /// - Parameter email: User's email address
     func resetPassword(email: String) async {
         guard !email.isEmpty else {
             errorMessage = Strings.Auth.fillAllFields
@@ -84,40 +62,143 @@ final class AuthController: ObservableObject {
         }
 
         await performAuthOperation {
-            try await self.authService.resetPassword(email: email)
+            guard let redirectURL = URL(string: "unfold://reset-password") else {
+                throw NSError(
+                    domain: "AuthController",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "Invalid redirect URL configuration"]
+                )
+            }
+
+            try await self.client.auth.resetPasswordForEmail(
+                email,
+                redirectTo: redirectURL
+            )
+
+            #if DEBUG
+            print("📧 [Auth] Password reset email sent to: \(email)")
+            print("   - Redirect URL: \(redirectURL.absoluteString)")
+            #endif
         }
     }
 
+    func verifyTokenAndUpdatePassword(token: String, newPassword: String) async throws {
+        #if DEBUG
+        print("🔐 [Auth] Verifying token and updating password")
+        print("   Token: \(token.prefix(10))...")
+        #endif
 
-    /// Set up authentication state listener
+        var tokenVerified = false
+        var userEmail: String?
+        var lastVerificationError: Error?
+
+        // Method 1: Try as tokenHash
+        do {
+            #if DEBUG
+            print("   Trying method 1: tokenHash verification")
+            #endif
+
+            let response = try await client.auth.verifyOTP(
+                tokenHash: token,
+                type: .recovery
+            )
+
+            tokenVerified = true
+            userEmail = response.user.email
+            #if DEBUG
+            print("✅ [Auth] Token verified (method 1)")
+            print("   User: \(userEmail ?? "unknown")")
+            #endif
+        } catch {
+            lastVerificationError = error
+            #if DEBUG
+            print("   Method 1 failed: \(error.localizedDescription)")
+            #endif
+        }
+
+        // Method 2: Try using token directly if method 1 failed
+        if !tokenVerified {
+            do {
+                #if DEBUG
+                print("   Trying method 2: email OTP verification")
+                #endif
+
+                let response = try await client.auth.verifyOTP(
+                    email: "",
+                    token: token,
+                    type: .recovery
+                )
+
+                tokenVerified = true
+                userEmail = response.user.email
+                #if DEBUG
+                print("✅ [Auth] Token verified (method 2)")
+                print("   User: \(userEmail ?? "unknown")")
+                #endif
+            } catch {
+                lastVerificationError = error
+                #if DEBUG
+                print("   Method 2 failed: \(error.localizedDescription)")
+                #endif
+            }
+        }
+
+        // If token verification failed, throw the error
+        guard tokenVerified else {
+            #if DEBUG
+            print("❌ [Auth] Token verification failed")
+            #endif
+            throw lastVerificationError ?? NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to verify token"])
+        }
+
+        // Now update the password (token is already verified)
+        #if DEBUG
+        print("   Updating password...")
+        #endif
+
+        try await client.auth.update(user: UserAttributes(password: newPassword))
+
+        #if DEBUG
+        print("✅ [Auth] Password updated successfully")
+        #endif
+    }
+
+    func getCurrentUserEmail() async -> String? {
+        return try? await client.auth.session.user.email
+    }
+
+    // MARK: - Private Methods
+
     private func setupAuthStateListener() {
-        authListenerToken = authService.addAuthStateListener { [weak self] isAuthenticated in
-            guard let self = self else { return }
+        Task {
+            supabaseListener = await client.auth.onAuthStateChange { [weak self] event, session in
+                guard let self = self else { return }
 
-            Task { @MainActor in
-                self.isAuthenticated = isAuthenticated
-                self.isLoading = false
+                let isAuthenticated = session != nil
 
-                // Fetch user info if authenticated
-                if isAuthenticated {
-                    await self.fetchCurrentUser()
-                } else {
-                    self.currentUser = nil
+                Task { @MainActor in
+                    self.isAuthenticated = isAuthenticated
+                    self.isLoading = false
+
+                    if isAuthenticated {
+                        await self.fetchCurrentUser()
+                    } else {
+                        self.currentUser = nil
+                    }
                 }
+
+                self.logAuthEvent(event, session: session)
             }
         }
     }
 
-    /// Fetch current authenticated user information
     private func fetchCurrentUser() async {
-        guard let email = await authService.getCurrentUserEmail() else {
+        guard let email = await getCurrentUserEmail() else {
             return
         }
 
-        // Create user model from available data
-        // In a real app, you might fetch additional user data from a database
         currentUser = User(
-            id: email, // Use email as temporary ID
+            id: email,
             email: email,
             displayName: nil,
             profilePictureURL: nil,
@@ -125,8 +206,6 @@ final class AuthController: ObservableObject {
         )
     }
 
-    /// Perform an authentication operation with error handling
-    /// - Parameter operation: Async throwing operation to perform
     private func performAuthOperation(_ operation: @escaping () async throws -> Void) async {
         isLoading = true
         errorMessage = nil
@@ -143,7 +222,6 @@ final class AuthController: ObservableObject {
         isLoading = false
     }
 
-    /// Validate login inputs
     private func validateLoginInputs(email: String, password: String) -> Bool {
         guard !email.isEmpty, !password.isEmpty else {
             errorMessage = Strings.Auth.fillAllFields
@@ -152,7 +230,6 @@ final class AuthController: ObservableObject {
         return true
     }
 
-    /// Validate signup inputs
     private func validateSignupInputs(email: String, password: String, verifyPassword: String) -> Bool {
         guard !email.isEmpty, !password.isEmpty else {
             errorMessage = Strings.Auth.fillAllFields
@@ -166,15 +243,43 @@ final class AuthController: ObservableObject {
 
         return true
     }
-}
 
-
-extension AuthController {
-    /// Create an AuthController with default Supabase service
-    /// - Returns: Configured AuthController instance
-    static func createDefault() -> AuthController {
-        let authService = SupabaseAuthService.createFromEnvironment()
-        return AuthController(authService: authService)
+    nonisolated private func logAuthEvent(_ event: AuthChangeEvent, session: Session?) {
+        #if DEBUG
+        switch event {
+        case .initialSession:
+            print("🔐 [Auth] Initial session loaded: \(session?.user.email ?? "no session")")
+        case .signedIn:
+            print("✅ [Auth] User signed in: \(session?.user.email ?? "unknown")")
+        case .signedOut:
+            print("🚪 [Auth] User signed out")
+        case .tokenRefreshed:
+            print("🔄 [Auth] Token refreshed")
+        default:
+            print("📡 [Auth] Event: \(event)")
+        }
+        #endif
     }
 }
 
+// MARK: - Factory
+
+extension AuthController {
+    static func createDefault() -> AuthController {
+        let urlString =
+            ProcessInfo.processInfo.environment["SUPABASE_URL"]
+            ?? Bundle.main.infoDictionary?["SUPABASE_URL"] as? String
+            ?? ""
+        let key =
+            ProcessInfo.processInfo.environment["SUPABASE_KEY"]
+            ?? Bundle.main.infoDictionary?["SUPABASE_KEY"] as? String
+            ?? ""
+
+        guard let url = URL(string: urlString), !key.isEmpty else {
+            fatalError("❌ Missing or invalid Supabase configuration. Check SUPABASE_URL and SUPABASE_KEY.")
+        }
+
+        let client = SupabaseClient(supabaseURL: url, supabaseKey: key)
+        return AuthController(client: client)
+    }
+}

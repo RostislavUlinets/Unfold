@@ -8,10 +8,10 @@ struct PasswordResetConfirmationView: View {
 
     let onComplete: () -> Void
 
-    init(authService: AuthServiceProtocol, resetToken: DeepLinkParser.PasswordResetToken, onComplete: @escaping () -> Void = {}) {
+    init(authController: AuthController, resetToken: DeepLinkParser.PasswordResetToken, onComplete: @escaping () -> Void = {}) {
         _controller = StateObject(
             wrappedValue: PasswordResetConfirmationController(
-                authService: authService,
+                authController: authController,
                 resetToken: resetToken
             )
         )
@@ -65,11 +65,10 @@ struct PasswordResetConfirmationView: View {
     private var formSection: some View {
         VStack(spacing: AppSpacing.md) {
             // Password field
-            InputFieldView(
+            SecureInputFieldView(
                 label: "New Password",
                 text: $controller.password,
-                placeholder: "Enter new password",
-                isSecure: true
+                placeholder: "Enter new password"
             )
 
             // Password strength indicator
@@ -78,11 +77,10 @@ struct PasswordResetConfirmationView: View {
             }
 
             // Confirm password field
-            InputFieldView(
+            SecureInputFieldView(
                 label: "Confirm Password",
                 text: $controller.confirmPassword,
-                placeholder: "Re-enter new password",
-                isSecure: true
+                placeholder: "Re-enter new password"
             )
 
             // Password match indicator
@@ -133,17 +131,36 @@ struct PasswordResetConfirmationView: View {
     // MARK: - Password Strength View
 
     private var passwordStrengthView: some View {
-        HStack {
-            Text("Password Strength:")
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.8))
+        VStack(alignment: .leading, spacing: AppSpacing.xs) {
+            HStack {
+                Text("Password Strength:")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
 
-            Text(controller.passwordStrength.description)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(strengthColor)
+                Text(controller.passwordStrength.description)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(strengthColor)
 
-            Spacer()
+                Spacer()
+            }
+
+            // Visual strength indicator
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Background
+                    RoundedRectangle(cornerRadius: AppCornerRadius.small)
+                        .fill(Color.white.opacity(0.2))
+                        .frame(height: 6)
+
+                    // Strength progress
+                    RoundedRectangle(cornerRadius: AppCornerRadius.small)
+                        .fill(strengthColor)
+                        .frame(width: geometry.size.width * strengthProgress, height: 6)
+                        .animation(.easeInOut(duration: 0.3), value: controller.passwordStrength)
+                }
+            }
+            .frame(height: 6)
         }
         .padding(.horizontal)
     }
@@ -153,6 +170,14 @@ struct PasswordResetConfirmationView: View {
         case .weak: return .red
         case .medium: return .orange
         case .strong: return .green
+        }
+    }
+
+    private var strengthProgress: CGFloat {
+        switch controller.passwordStrength {
+        case .weak: return 0.33
+        case .medium: return 0.66
+        case .strong: return 1.0
         }
     }
 
