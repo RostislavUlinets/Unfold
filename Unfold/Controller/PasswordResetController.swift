@@ -1,32 +1,27 @@
-import SwiftUI
+import Foundation
 
 @MainActor
 final class PasswordResetController: ObservableObject {
 
-    /// Indicates if password reset email is being sent
+    // MARK: - Published Properties
+
     @Published var isSending = false
-
-    /// Indicates if password reset email was sent successfully
     @Published var success = false
-
-    /// Contains error message if reset request failed
     @Published var errorMessage: String?
 
+    // MARK: - Dependencies
 
-    private let authService: AuthServiceProtocol
+    private let authController: AuthController
 
+    // MARK: - Initialization
 
-    /// Initialize controller with authentication service
-    /// - Parameter authService: Service conforming to AuthServiceProtocol
-    init(authService: AuthServiceProtocol) {
-        self.authService = authService
+    init(authController: AuthController) {
+        self.authController = authController
     }
 
+    // MARK: - Public Methods
 
-    /// Request a password reset email
-    /// - Parameter email: User's email address
     func resetPassword(email: String) async {
-        // Validate input
         guard !email.isEmpty else {
             errorMessage = Strings.Auth.fillAllFields
             return
@@ -36,17 +31,14 @@ final class PasswordResetController: ObservableObject {
         errorMessage = nil
         success = false
 
-        do {
-            try await authService.resetPassword(email: email)
+        await authController.resetPassword(email: email)
+
+        if let error = authController.errorMessage {
+            errorMessage = error
+        } else {
             success = true
-        } catch {
-            errorMessage = error.localizedDescription
-            #if DEBUG
-            print("❌ [PasswordReset] Failed: \(error.localizedDescription)")
-            #endif
         }
 
         isSending = false
     }
 }
-

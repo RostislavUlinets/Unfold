@@ -7,8 +7,8 @@ struct PasswordResetDialog: View {
     @State private var isEmailValid = true
     @FocusState private var isEmailFieldFocused: Bool
 
-    init(authService: AuthServiceProtocol) {
-        _controller = StateObject(wrappedValue: PasswordResetController(authService: authService))
+    init(authController: AuthController) {
+        _controller = StateObject(wrappedValue: PasswordResetController(authController: authController))
     }
 
     var body: some View {
@@ -75,5 +75,5 @@ struct PasswordResetDialog: View {
 }
 
 #Preview {
-    PasswordResetDialog(authService: SupabaseAuthService.createFromEnvironment())
+    PasswordResetDialog(authController: AuthController.createDefault())
 }
