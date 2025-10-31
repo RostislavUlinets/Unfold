@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import MapKit
 import Combine
 import Supabase
 
@@ -62,6 +63,36 @@ final class MapController: ObservableObject {
 
     func calculateClearRadius(around location: CLLocationCoordinate2D) -> [GridCell] {
         return GridCalculator.cellsWithinRadius(center: location, radiusMeters: 150.0)
+    }
+
+    func updateFogCells(for region: MKCoordinateRegion) {
+        let centerLat = region.center.latitude
+        let centerLng = region.center.longitude
+        let latSpan = region.span.latitudeDelta
+        let lngSpan = region.span.longitudeDelta
+
+        let minLat = centerLat - latSpan / 2
+        let maxLat = centerLat + latSpan / 2
+        let minLng = centerLng - lngSpan / 2
+        let maxLng = centerLng + lngSpan / 2
+
+        var cells: [GridCell] = []
+        let gridSize = GridCalculator.gridSize
+        let gridDegrees = GridCalculator.metersToLatitudeDegrees(gridSize)
+
+        var currentLat = minLat
+        while currentLat <= maxLat {
+            var currentLng = minLng
+            while currentLng <= maxLng {
+                let coordinate = CLLocationCoordinate2D(latitude: currentLat, longitude: currentLng)
+                let cell = GridCell(coordinate: coordinate)
+                cells.append(cell)
+                currentLng += gridDegrees
+            }
+            currentLat += gridDegrees
+        }
+
+        fogCells = cells
     }
 
     // MARK: - Cell Management

@@ -1,7 +1,8 @@
 import Foundation
 import CoreLocation
 
-struct GridCell: Hashable, Codable {
+struct GridCell: Hashable, Codable, Identifiable {
+    var id: String { cellId }
     let cellId: String
     let latitude: Double
     let longitude: Double

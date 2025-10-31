@@ -8,14 +8,31 @@ struct MapView: View {
     @Binding var region: MKCoordinateRegion
 
     var body: some View {
-        Map(coordinateRegion: $region, showsUserLocation: true)
-            .ignoresSafeArea()
-            .onChange(of: locationController.currentLocation?.latitude) { _ in
-                checkExplorationIfNeeded()
+        Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: mapController.fogCells) { cell in
+            MapAnnotation(coordinate: cell.coordinate) {
+                FogCellView(cell: cell)
+                    .environmentObject(mapController)
             }
-            .onChange(of: locationController.currentLocation?.longitude) { _ in
-                checkExplorationIfNeeded()
-            }
+        }
+        .ignoresSafeArea()
+        .onChange(of: region.center.latitude) { _ in
+            mapController.updateFogCells(for: region)
+        }
+        .onChange(of: region.center.longitude) { _ in
+            mapController.updateFogCells(for: region)
+        }
+        .onChange(of: region.span.latitudeDelta) { _ in
+            mapController.updateFogCells(for: region)
+        }
+        .onChange(of: locationController.currentLocation?.latitude) { _ in
+            checkExplorationIfNeeded()
+        }
+        .onChange(of: locationController.currentLocation?.longitude) { _ in
+            checkExplorationIfNeeded()
+        }
+        .onAppear {
+            mapController.updateFogCells(for: region)
+        }
     }
 
     private func checkExplorationIfNeeded() {
