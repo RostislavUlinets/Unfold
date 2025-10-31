@@ -36,6 +36,9 @@ struct UnfoldApp: App {
                 .onOpenURL { url in
                     handleDeepLink(url)
                 }
+                .onAppear {
+                    mapController.setAuthController(authController)
+                }
         }
     }
 

@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import Combine
+import Supabase
 
 @MainActor
 final class MapController: ObservableObject {
@@ -9,16 +10,34 @@ final class MapController: ObservableObject {
     @Published var fogCells: [GridCell] = []
     @Published var isSyncing: Bool = false
     @Published var lastSyncDate: Date?
+    @Published var syncError: String?
 
     private var exploredCellsData: [ExploredCell] = []
+    private var syncedCellIds: Set<String> = []
     private var cancellables = Set<AnyCancellable>()
+    private var syncTimer: Timer?
 
     private let userDefaultsKey = "explored_cells"
     private let statsDefaultsKey = "exploration_stats"
     private let lastSyncKey = "last_sync_date"
+    private let syncedCellsKey = "synced_cells"
 
-    init() {
+    private weak var authController: AuthController?
+
+    init(authController: AuthController? = nil) {
+        self.authController = authController
         loadFromPersistence()
+        setupPeriodicSync()
+    }
+
+    deinit {
+        syncTimer?.invalidate()
+    }
+
+    // MARK: - Dependency Injection
+
+    func setAuthController(_ controller: AuthController) {
+        self.authController = controller
     }
 
     // MARK: - Exploration Detection
@@ -110,16 +129,78 @@ final class MapController: ObservableObject {
             explorationStats = .empty
         }
 
+        if let syncedData = UserDefaults.standard.array(forKey: syncedCellsKey) as? [String] {
+            syncedCellIds = Set(syncedData)
+        }
+
         lastSyncDate = UserDefaults.standard.object(forKey: lastSyncKey) as? Date
     }
 
-    // MARK: - Future Sync
+    // MARK: - Sync
+
+    private func setupPeriodicSync() {
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.syncToSupabase()
+            }
+        }
+    }
 
     func syncToSupabase() async {
-        isSyncing = true
-        defer { isSyncing = false }
+        guard let authController = authController,
+              let userId = authController.currentUser?.id else {
+            return
+        }
 
-        lastSyncDate = Date()
-        saveToPersistence()
+        let client = authController.supabaseClient
+
+        guard !isSyncing else { return }
+
+        let cellsToSync = exploredCellsData.filter { !syncedCellIds.contains($0.id) }
+        guard !cellsToSync.isEmpty else { return }
+
+        isSyncing = true
+        syncError = nil
+
+        do {
+            let formatter = ISO8601DateFormatter()
+            let rows: [[String: AnyJSON]] = cellsToSync.map { cell in
+                [
+                    "user_id": AnyJSON.string(userId),
+                    "cell_id": AnyJSON.string(cell.id),
+                    "latitude": AnyJSON.double(cell.latitude),
+                    "longitude": AnyJSON.double(cell.longitude),
+                    "explored_at": AnyJSON.string(formatter.string(from: cell.exploredAt))
+                ]
+            }
+
+            try await client.from("explored_cells").insert(rows).execute()
+
+            syncedCellIds.formUnion(cellsToSync.map(\.id))
+            lastSyncDate = Date()
+
+            UserDefaults.standard.set(Array(syncedCellIds), forKey: syncedCellsKey)
+            saveToPersistence()
+
+        } catch {
+            syncError = "Sync failed: \(error.localizedDescription)"
+        }
+
+        isSyncing = false
+    }
+
+    // MARK: - Data Management
+
+    func clearData() {
+        exploredCells.removeAll()
+        exploredCellsData.removeAll()
+        syncedCellIds.removeAll()
+        explorationStats = .empty
+        lastSyncDate = nil
+
+        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: statsDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: syncedCellsKey)
+        UserDefaults.standard.removeObject(forKey: lastSyncKey)
     }
 }

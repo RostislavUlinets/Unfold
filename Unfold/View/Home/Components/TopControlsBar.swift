@@ -1,9 +1,12 @@
 import SwiftUI
+import MapKit
 
 struct TopControlsBar: View {
 
     @Binding var showSideMenu: Bool
+    @Binding var mapRegion: MKCoordinateRegion
     let exploredPercentage: Double
+    let onLocationTapped: () -> Void
 
 
     var body: some View {
@@ -21,7 +24,9 @@ struct TopControlsBar: View {
             Spacer()
 
             ControlButton(icon: "magnifyingglass") {}
-            ControlButton(icon: "location.fill") {}
+            ControlButton(icon: "location.fill") {
+                onLocationTapped()
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 60)
@@ -32,7 +37,12 @@ struct TopControlsBar: View {
 #Preview {
     TopControlsBar(
         showSideMenu: .constant(false),
-        exploredPercentage: 12
+        mapRegion: .constant(MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
+            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        )),
+        exploredPercentage: 12,
+        onLocationTapped: {}
     )
     .background(Color.black)
 }

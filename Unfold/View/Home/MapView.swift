@@ -5,10 +5,7 @@ struct MapView: View {
     @EnvironmentObject var mapController: MapController
     @EnvironmentObject var locationController: LocationController
 
-    @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
-        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-    )
+    @Binding var region: MKCoordinateRegion
 
     var body: some View {
         Map(coordinateRegion: $region, showsUserLocation: true)
