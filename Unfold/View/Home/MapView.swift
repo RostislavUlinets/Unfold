@@ -16,13 +16,13 @@ struct MapView: View {
         }
         .ignoresSafeArea()
         .onChange(of: region.center.latitude) { _ in
-            mapController.updateFogCells(for: region)
+            mapController.updateFogCellsThrottled(for: region)
         }
         .onChange(of: region.center.longitude) { _ in
-            mapController.updateFogCells(for: region)
+            mapController.updateFogCellsThrottled(for: region)
         }
         .onChange(of: region.span.latitudeDelta) { _ in
-            mapController.updateFogCells(for: region)
+            mapController.updateFogCellsThrottled(for: region)
         }
         .onChange(of: locationController.currentLocation?.latitude) { _ in
             checkExplorationIfNeeded()

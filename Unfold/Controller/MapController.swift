@@ -17,6 +17,7 @@ final class MapController: ObservableObject {
     private var syncedCellIds: Set<String> = []
     private var cancellables = Set<AnyCancellable>()
     private var syncTimer: Timer?
+    private var fogUpdateWorkItem: DispatchWorkItem?
 
     private let userDefaultsKey = "explored_cells"
     private let statsDefaultsKey = "exploration_stats"
@@ -65,7 +66,20 @@ final class MapController: ObservableObject {
         return GridCalculator.cellsWithinRadius(center: location, radiusMeters: 150.0)
     }
 
+    func updateFogCellsThrottled(for region: MKCoordinateRegion) {
+        fogUpdateWorkItem?.cancel()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.updateFogCells(for: region)
+        }
+
+        fogUpdateWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
+    }
+
     func updateFogCells(for region: MKCoordinateRegion) {
+        let maxCells = 150
+
         let centerLat = region.center.latitude
         let centerLng = region.center.longitude
         let latSpan = region.span.latitudeDelta
@@ -76,20 +90,38 @@ final class MapController: ObservableObject {
         let minLng = centerLng - lngSpan / 2
         let maxLng = centerLng + lngSpan / 2
 
-        var cells: [GridCell] = []
         let gridSize = GridCalculator.gridSize
         let gridDegrees = GridCalculator.metersToLatitudeDegrees(gridSize)
 
+        // Calculate how many cells would be generated
+        let latCellCount = Int(ceil((maxLat - minLat) / gridDegrees))
+        let lngCellCount = Int(ceil((maxLng - minLng) / gridDegrees))
+        let totalCells = latCellCount * lngCellCount
+
+        // If too many cells, sample them to stay under limit
+        let skipFactor = totalCells > maxCells ? Int(ceil(Double(totalCells) / Double(maxCells))) : 1
+
+        var cells: [GridCell] = []
+        var latIndex = 0
         var currentLat = minLat
-        while currentLat <= maxLat {
-            var currentLng = minLng
-            while currentLng <= maxLng {
-                let coordinate = CLLocationCoordinate2D(latitude: currentLat, longitude: currentLng)
-                let cell = GridCell(coordinate: coordinate)
-                cells.append(cell)
-                currentLng += gridDegrees
+
+        while currentLat <= maxLat && cells.count < maxCells {
+            if latIndex % skipFactor == 0 {
+                var lngIndex = 0
+                var currentLng = minLng
+
+                while currentLng <= maxLng && cells.count < maxCells {
+                    if lngIndex % skipFactor == 0 {
+                        let coordinate = CLLocationCoordinate2D(latitude: currentLat, longitude: currentLng)
+                        let cell = GridCell(coordinate: coordinate)
+                        cells.append(cell)
+                    }
+                    currentLng += gridDegrees
+                    lngIndex += 1
+                }
             }
             currentLat += gridDegrees
+            latIndex += 1
         }
 
         fogCells = cells
