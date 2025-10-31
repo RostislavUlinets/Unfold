@@ -24,6 +24,23 @@ struct HomePageView: View {
                 .environmentObject(auth)
         }
         .ignoresSafeArea()
+        .onChange(of: locationController.currentLocation?.latitude) { _ in
+            if locationController.isTrackingLocation {
+                centerOnUserLocation()
+            }
+        }
+        .onChange(of: locationController.currentLocation?.longitude) { _ in
+            if locationController.isTrackingLocation {
+                centerOnUserLocation()
+            }
+        }
+    }
+
+    private func centerOnUserLocation() {
+        guard let location = locationController.currentLocation else { return }
+        withAnimation {
+            mapRegion.center = location
+        }
     }
 
     private var mainContent: some View {
@@ -72,12 +89,16 @@ struct HomePageView: View {
     }
 
     private func handleLocationButtonTap() {
-        locationController.startTracking()
-        if let location = locationController.currentLocation {
-            withAnimation {
-                mapRegion.center = location
-            }
+        // Request permission first if needed
+        if locationController.authorizationStatus == .notDetermined {
+            locationController.requestLocationPermission()
         }
+
+        // Start tracking (map will auto-center when location updates)
+        locationController.startTracking()
+
+        // Immediately center if location is already available
+        centerOnUserLocation()
     }
 
     private func zoomIn() {
