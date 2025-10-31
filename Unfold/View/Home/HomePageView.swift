@@ -24,6 +24,9 @@ struct HomePageView: View {
                 .environmentObject(auth)
         }
         .ignoresSafeArea()
+        .onAppear {
+            initializeMapLocation()
+        }
         .onChange(of: locationController.currentLocation?.latitude) { _ in
             if locationController.isTrackingLocation {
                 centerOnUserLocation()
@@ -85,6 +88,18 @@ struct HomePageView: View {
             ControlButton(icon: "minus") {
                 zoomOut()
             }
+        }
+    }
+
+    private func initializeMapLocation() {
+        // Request location permission if not determined
+        if locationController.authorizationStatus == .notDetermined {
+            locationController.requestLocationPermission()
+        }
+
+        // Center on current location if available
+        if let location = locationController.currentLocation {
+            mapRegion.center = location
         }
     }
 

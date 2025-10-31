@@ -11,22 +11,15 @@ struct MapView: View {
         Map(coordinateRegion: $region, showsUserLocation: true)
             .ignoresSafeArea()
             .onChange(of: locationController.currentLocation?.latitude) { _ in
-                updateLocationIfNeeded()
+                checkExplorationIfNeeded()
             }
             .onChange(of: locationController.currentLocation?.longitude) { _ in
-                updateLocationIfNeeded()
-            }
-            .onAppear {
-                if let location = locationController.currentLocation {
-                    region.center = location
-                }
-                locationController.requestLocationPermission()
+                checkExplorationIfNeeded()
             }
     }
 
-    private func updateLocationIfNeeded() {
+    private func checkExplorationIfNeeded() {
         guard let location = locationController.currentLocation else { return }
-        region.center = location
         mapController.checkExploration(at: location)
     }
 }
