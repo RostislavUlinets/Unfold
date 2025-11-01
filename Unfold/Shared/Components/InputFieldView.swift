@@ -5,26 +5,25 @@ struct InputFieldView: View {
     let label: String
     @Binding var text: String
     let placeholder: String
+    var icon: String? = nil
     var keyboardType: UIKeyboardType = .default
     var isSecure = false
 
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-            Text(label)
-                .font(.headline)
-                .foregroundColor(AppColors.authBackground)
+        HStack(spacing: AppSpacing.sm) {
+            if let icon = icon {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(AppColors.authBackground)
+                    .frame(width: 24)
+            }
 
             inputField
-                .padding()
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: AppCornerRadius.pill))
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppCornerRadius.pill)
-                        .stroke(AppColors.authBackground, lineWidth: 1)
-                )
         }
-        .padding(.horizontal)
+        .padding()
+        .background(AppColors.authInputBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppCornerRadius.pill))
     }
 
 
@@ -32,11 +31,13 @@ struct InputFieldView: View {
     private var inputField: some View {
         if isSecure {
             SecureField(placeholder, text: $text)
+                .foregroundColor(AppColors.authBackground)
         } else {
             TextField(placeholder, text: $text)
                 .keyboardType(keyboardType)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .foregroundColor(AppColors.authBackground)
         }
     }
 }

@@ -9,12 +9,15 @@ struct AuthFormFooter: View {
 
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: AppSpacing.sm) {
             if selectedMode == .login {
-                Button("Forgot Password?") {
+                Button {
                     showReset = true
+                } label: {
+                    Text("Forgot your password?")
+                        .font(.subheadline)
+                        .foregroundColor(AppColors.authBackground)
                 }
-                .foregroundColor(.authBackground)
                 .popover(isPresented: $showReset, arrowEdge: .bottom) {
                     PasswordResetDialog(authController: authController)
                         .presentationCompactAdaptation(.none)
@@ -22,11 +25,26 @@ struct AuthFormFooter: View {
                 .transition(.opacity)
             }
 
-            Button("Terms & Conditions") {}
-                .font(.caption)
-                .foregroundColor(.authBackground)
+            Group {
+                Text("By continuing, you agree to our ")
+                    .foregroundColor(AppColors.authBackground.opacity(0.7))
+                +
+                Text("Terms of Service")
+                    .foregroundColor(AppColors.authBackground)
+                    .underline()
+                +
+                Text(" and ")
+                    .foregroundColor(AppColors.authBackground.opacity(0.7))
+                +
+                Text("Privacy Policy")
+                    .foregroundColor(AppColors.authBackground)
+                    .underline()
+            }
+            .font(.caption)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal)
         }
-        .padding(.top, 10)
+        .padding(.top, AppSpacing.md)
     }
 }
 

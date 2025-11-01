@@ -173,6 +173,34 @@ final class AuthController: ObservableObject {
         return try? await client.auth.session.user.email
     }
 
+    func signInWithGoogle() async {
+        await performAuthOperation {
+            #if DEBUG
+            print("🔐 [Auth] Initiating Google sign-in")
+            #endif
+
+            try await self.client.auth.signInWithOAuth(provider: .google)
+
+            #if DEBUG
+            print("✅ [Auth] Google OAuth flow initiated")
+            #endif
+        }
+    }
+
+    func signInWithApple() async {
+        await performAuthOperation {
+            #if DEBUG
+            print("🔐 [Auth] Initiating Apple sign-in")
+            #endif
+
+            try await self.client.auth.signInWithOAuth(provider: .apple)
+
+            #if DEBUG
+            print("✅ [Auth] Apple OAuth flow initiated")
+            #endif
+        }
+    }
+
     // MARK: - Private Methods
 
     private func setupAuthStateListener() {

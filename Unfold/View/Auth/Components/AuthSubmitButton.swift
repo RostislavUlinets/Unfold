@@ -13,7 +13,7 @@ struct AuthSubmitButton: View {
                 ProgressView()
                     .tint(.white)
             } else {
-                Text(selectedMode == .login ? "Login" : "Sign Up")
+                Text(selectedMode == .login ? "Sign In" : "Sign Up")
                     .fontWeight(.semibold)
             }
         }
