@@ -16,6 +16,12 @@ final class AuthController: ObservableObject {
     private let client: SupabaseClient
     private var supabaseListener: AuthStateChangeListenerRegistration?
 
+    // MARK: - Public Properties
+
+    var supabaseClient: SupabaseClient {
+        client
+    }
+
     // MARK: - Initialization
 
     init(client: SupabaseClient) {

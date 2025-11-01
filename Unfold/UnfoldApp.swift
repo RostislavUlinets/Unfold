@@ -18,6 +18,9 @@ struct UnfoldApp: App {
     /// State to manage password reset flow from deep links
     @StateObject private var resetTokenHolder = PasswordResetTokenHolder()
 
+    /// Location controller managing GPS tracking and permissions
+    @StateObject private var locationController = LocationController()
+
     // MARK: - Body
 
     var body: some Scene {
@@ -25,6 +28,7 @@ struct UnfoldApp: App {
             RootView()
                 .environmentObject(authController)
                 .environmentObject(resetTokenHolder)
+                .environmentObject(locationController)
                 .onOpenURL { url in
                     handleDeepLink(url)
                 }

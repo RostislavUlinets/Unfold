@@ -1,17 +1,14 @@
 import SwiftUI
 
 struct TopControlsBar: View {
-
-    @Binding var showSideMenu: Bool
     let exploredPercentage: Double
-
+    let onLocationTapped: () -> Void
+    let onLogoutTapped: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            ControlButton(icon: "line.3.horizontal") {
-                withAnimation(.smooth(duration: 0.3)) {
-                    showSideMenu.toggle()
-                }
+            ControlButton(icon: "rectangle.portrait.and.arrow.right") {
+                onLogoutTapped()
             }
 
             Spacer()
@@ -20,19 +17,20 @@ struct TopControlsBar: View {
 
             Spacer()
 
-            ControlButton(icon: "magnifyingglass") {}
-            ControlButton(icon: "location.fill") {}
+            ControlButton(icon: "location.fill") {
+                onLocationTapped()
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 60)
     }
 }
 
-
 #Preview {
     TopControlsBar(
-        showSideMenu: .constant(false),
-        exploredPercentage: 12
+        exploredPercentage: 12,
+        onLocationTapped: {},
+        onLogoutTapped: {}
     )
     .background(Color.black)
 }
