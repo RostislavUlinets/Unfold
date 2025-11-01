@@ -21,9 +21,6 @@ struct UnfoldApp: App {
     /// Location controller managing GPS tracking and permissions
     @StateObject private var locationController = LocationController()
 
-    /// Map controller managing exploration detection and fog state
-    @StateObject private var mapController = MapController()
-
     // MARK: - Body
 
     var body: some Scene {
@@ -32,12 +29,8 @@ struct UnfoldApp: App {
                 .environmentObject(authController)
                 .environmentObject(resetTokenHolder)
                 .environmentObject(locationController)
-                .environmentObject(mapController)
                 .onOpenURL { url in
                     handleDeepLink(url)
-                }
-                .onAppear {
-                    mapController.setAuthController(authController)
                 }
         }
     }

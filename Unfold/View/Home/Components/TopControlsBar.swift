@@ -1,20 +1,14 @@
 import SwiftUI
-import MapKit
 
 struct TopControlsBar: View {
-
-    @Binding var showSideMenu: Bool
-    @Binding var mapRegion: MKCoordinateRegion
     let exploredPercentage: Double
     let onLocationTapped: () -> Void
-
+    let onLogoutTapped: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            ControlButton(icon: "line.3.horizontal") {
-                withAnimation(.smooth(duration: 0.3)) {
-                    showSideMenu.toggle()
-                }
+            ControlButton(icon: "rectangle.portrait.and.arrow.right") {
+                onLogoutTapped()
             }
 
             Spacer()
@@ -23,7 +17,6 @@ struct TopControlsBar: View {
 
             Spacer()
 
-            ControlButton(icon: "magnifyingglass") {}
             ControlButton(icon: "location.fill") {
                 onLocationTapped()
             }
@@ -33,16 +26,11 @@ struct TopControlsBar: View {
     }
 }
 
-
 #Preview {
     TopControlsBar(
-        showSideMenu: .constant(false),
-        mapRegion: .constant(MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
-            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-        )),
         exploredPercentage: 12,
-        onLocationTapped: {}
+        onLocationTapped: {},
+        onLogoutTapped: {}
     )
     .background(Color.black)
 }

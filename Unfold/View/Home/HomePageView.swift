@@ -3,40 +3,28 @@ import MapKit
 
 struct HomePageView: View {
     @EnvironmentObject private var auth: AuthController
-    @EnvironmentObject private var mapController: MapController
     @EnvironmentObject private var locationController: LocationController
-    @State private var showSideMenu = false
-    @State private var selectedTab: TabItem = .home
     @State private var mapRegion = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
 
-    private var exploredPercentage: Double {
-        mapController.explorationStats.explorationPercentage
-    }
-
     var body: some View {
-        ZStack {
-            mainContent
-
-            SideMenuView(isShowing: $showSideMenu)
-                .environmentObject(auth)
-        }
-        .ignoresSafeArea()
-        .onAppear {
-            initializeMapLocation()
-        }
-        .onChange(of: locationController.currentLocation?.latitude) { _ in
-            if locationController.isTrackingLocation {
-                centerOnUserLocation()
+        mainContent
+            .ignoresSafeArea()
+            .onAppear {
+                initializeMapLocation()
             }
-        }
-        .onChange(of: locationController.currentLocation?.longitude) { _ in
-            if locationController.isTrackingLocation {
-                centerOnUserLocation()
+            .onChange(of: locationController.currentLocation?.latitude) { _ in
+                if locationController.isTrackingLocation {
+                    centerOnUserLocation()
+                }
             }
-        }
+            .onChange(of: locationController.currentLocation?.longitude) { _ in
+                if locationController.isTrackingLocation {
+                    centerOnUserLocation()
+                }
+            }
     }
 
     private func centerOnUserLocation() {
@@ -48,16 +36,15 @@ struct HomePageView: View {
 
     private var mainContent: some View {
         ZStack {
-            MapView(region: $mapRegion)
-                .environmentObject(mapController)
-                .environmentObject(locationController)
+            // Basic map without fog
+            Map(coordinateRegion: $mapRegion, showsUserLocation: true)
+                .ignoresSafeArea()
 
             VStack {
                 TopControlsBar(
-                    showSideMenu: $showSideMenu,
-                    mapRegion: $mapRegion,
-                    exploredPercentage: exploredPercentage,
-                    onLocationTapped: handleLocationButtonTap
+                    exploredPercentage: 0.0,
+                    onLocationTapped: handleLocationButtonTap,
+                    onLogoutTapped: handleLogout
                 )
                 Spacer()
             }
@@ -68,17 +55,11 @@ struct HomePageView: View {
                     Spacer()
                     zoomControls
                         .padding(.trailing, 16)
-                        .padding(.bottom, 120)
+                        .padding(.bottom, 40)
                 }
-            }
-
-            VStack {
-                Spacer()
-                BottomNavigationBar(selectedTab: $selectedTab)
             }
         }
     }
-
 
     private var zoomControls: some View {
         VStack(spacing: 12) {
@@ -129,11 +110,16 @@ struct HomePageView: View {
             mapRegion.span.longitudeDelta *= 2
         }
     }
+
+    private func handleLogout() {
+        Task {
+            await auth.logout()
+        }
+    }
 }
 
 #Preview {
     HomePageView()
         .environmentObject(AuthController.createDefault())
-        .environmentObject(MapController())
         .environmentObject(LocationController())
 }
