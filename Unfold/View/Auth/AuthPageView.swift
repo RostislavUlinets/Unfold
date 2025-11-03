@@ -19,11 +19,12 @@ struct AuthPageView: View {
 
                     VStack(spacing: AppSpacing.md) {
                         Image(systemName: AppIcons.coffee)
-                            .font(.system(size: 48))
+                            .font(.system(size: 52, weight: .medium))
                             .foregroundColor(AppColors.authBackground)
-                            .frame(width: 100, height: 100)
+                            .frame(width: 110, height: 110)
                             .background(Color.white)
                             .clipShape(Circle())
+                            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
 
                         Text("Hello & Welcome!")
                             .font(.system(size: 32, weight: .bold))

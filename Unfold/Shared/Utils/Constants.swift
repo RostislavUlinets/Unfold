@@ -224,7 +224,7 @@ enum AppIcons {
     static let logout = "rectangle.portrait.and.arrow.right"
     static let email = "envelope.fill"
     static let lock = "lock.fill"
-    static let coffee = "cup.and.saucer.fill"
+    static let coffee = "safari.fill"
 
 
     static let success = "checkmark.circle.fill"

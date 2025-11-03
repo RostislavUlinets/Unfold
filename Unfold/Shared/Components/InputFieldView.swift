@@ -32,12 +32,14 @@ struct InputFieldView: View {
         if isSecure {
             SecureField(placeholder, text: $text)
                 .foregroundColor(AppColors.authBackground)
+                .font(.system(size: 16))
         } else {
             TextField(placeholder, text: $text)
                 .keyboardType(keyboardType)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .foregroundColor(AppColors.authBackground)
+                .font(.system(size: 16))
         }
     }
 }

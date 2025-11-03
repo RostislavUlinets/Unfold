@@ -21,7 +21,7 @@ struct SecureInputFieldView: View {
 
             Button(action: toggleVisibility) {
                 Image(systemName: isSecureVisible ? "eye.slash.fill" : "eye.fill")
-                    .foregroundColor(AppColors.authBackground.opacity(0.6))
+                    .foregroundColor(AppColors.authBackground.opacity(0.7))
                     .frame(width: 24, height: 24)
             }
         }
@@ -37,9 +37,11 @@ struct SecureInputFieldView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .foregroundColor(AppColors.authBackground)
+                .font(.system(size: 16))
         } else {
             SecureField(placeholder, text: $text)
                 .foregroundColor(AppColors.authBackground)
+                .font(.system(size: 16))
         }
     }
 

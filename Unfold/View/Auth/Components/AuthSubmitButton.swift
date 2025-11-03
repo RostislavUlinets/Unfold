@@ -14,14 +14,14 @@ struct AuthSubmitButton: View {
                     .tint(.white)
             } else {
                 Text(selectedMode == .login ? "Sign In" : "Sign Up")
-                    .fontWeight(.semibold)
+                    .font(.system(size: 17, weight: .semibold))
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 55)
+        .frame(height: 56)
         .foregroundColor(.white)
         .background(Color.authBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .clipShape(RoundedRectangle(cornerRadius: 28))
         .disabled(isLoading)
     }
 }

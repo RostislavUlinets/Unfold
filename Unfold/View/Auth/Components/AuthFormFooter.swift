@@ -16,6 +16,7 @@ struct AuthFormFooter: View {
                 } label: {
                     Text("Forgot your password?")
                         .font(.subheadline)
+                        .fontWeight(.medium)
                         .foregroundColor(AppColors.authBackground)
                 }
                 .popover(isPresented: $showReset, arrowEdge: .bottom) {
@@ -27,17 +28,19 @@ struct AuthFormFooter: View {
 
             Group {
                 Text("By continuing, you agree to our ")
-                    .foregroundColor(AppColors.authBackground.opacity(0.7))
+                    .foregroundColor(AppColors.authBackground.opacity(0.8))
                 +
                 Text("Terms of Service")
                     .foregroundColor(AppColors.authBackground)
+                    .fontWeight(.medium)
                     .underline()
                 +
                 Text(" and ")
-                    .foregroundColor(AppColors.authBackground.opacity(0.7))
+                    .foregroundColor(AppColors.authBackground.opacity(0.8))
                 +
                 Text("Privacy Policy")
                     .foregroundColor(AppColors.authBackground)
+                    .fontWeight(.medium)
                     .underline()
             }
             .font(.caption)

@@ -20,7 +20,8 @@ struct AuthFormView: View {
                 isLoading: controller.isLoading,
                 action: handleAuth
             )
-            .frame(width: parentSize.width * 0.6, height: 55)
+            .frame(width: parentSize.width * 0.85)
+            .padding(.horizontal)
             .padding(.top, 10)
 
             if let error = controller.errorMessage {
