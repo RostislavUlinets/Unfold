@@ -20,7 +20,8 @@ struct AuthFormView: View {
                 isLoading: controller.isLoading,
                 action: handleAuth
             )
-            .frame(width: parentSize.width * 0.6, height: 55)
+            .frame(width: parentSize.width * 0.85)
+            .padding(.horizontal)
             .padding(.top, 10)
 
             if let error = controller.errorMessage {
@@ -36,6 +37,11 @@ struct AuthFormView: View {
                 authController: controller,
                 showReset: $showReset
             )
+
+            SocialLoginSection(
+                onGoogleSignIn: handleGoogleSignIn,
+                onAppleSignIn: handleAppleSignIn
+            )
         }
         .padding(.bottom, 20)
         .animation(.smooth(duration: 0.2), value: selectedMode)
@@ -46,24 +52,28 @@ struct AuthFormView: View {
             InputFieldView(
                 label: "Email",
                 text: $email,
-                placeholder: "Email",
+                placeholder: "Email address",
+                icon: AppIcons.email,
                 keyboardType: .emailAddress
             )
+            .padding(.horizontal)
 
-            InputFieldView(
+            SecureInputFieldView(
                 label: "Password",
                 text: $password,
                 placeholder: "Password",
-                isSecure: true
+                icon: AppIcons.lock
             )
+            .padding(.horizontal)
 
             if selectedMode == .signup {
-                InputFieldView(
+                SecureInputFieldView(
                     label: "Confirm Password",
                     text: $passwordConfirmation,
                     placeholder: "Re-enter password",
-                    isSecure: true
+                    icon: AppIcons.lock
                 )
+                .padding(.horizontal)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
@@ -80,6 +90,18 @@ struct AuthFormView: View {
                     verifyPassword: passwordConfirmation
                 )
             }
+        }
+    }
+
+    private func handleGoogleSignIn() {
+        Task {
+            await controller.signInWithGoogle()
+        }
+    }
+
+    private func handleAppleSignIn() {
+        Task {
+            await controller.signInWithApple()
         }
     }
 }

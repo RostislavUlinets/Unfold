@@ -21,7 +21,9 @@ struct RootView: View {
                         resetToken: resetToken,
                         onComplete: {
                             // Clear the token to navigate to HomeView
-                            resetTokenHolder.token = nil
+                            Task { @MainActor in
+                                resetTokenHolder.token = nil
+                            }
                         }
                     )
                     .environmentObject(auth)
@@ -43,7 +45,9 @@ struct RootView: View {
                 }
             }
             Button("Cancel", role: .cancel) {
-                resetTokenHolder.token = nil
+                Task { @MainActor in
+                    resetTokenHolder.token = nil
+                }
             }
         } message: {
             Text("You're currently logged in. Do you want to sign out and reset your password?")

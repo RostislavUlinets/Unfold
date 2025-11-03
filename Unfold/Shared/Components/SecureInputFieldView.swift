@@ -5,33 +5,29 @@ struct SecureInputFieldView: View {
     let label: String
     @Binding var text: String
     let placeholder: String
+    var icon: String? = nil
     @State private var isSecureVisible = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-            Text(label)
-                .font(.headline)
-                .foregroundColor(AppColors.authBackground)
-
-            HStack {
-                inputField
-
-                Button(action: toggleVisibility) {
-                    Image(systemName: isSecureVisible ? "eye.slash.fill" : "eye.fill")
-                        .foregroundColor(AppColors.authBackground.opacity(0.6))
-                        .frame(width: 44, height: 44)
-                }
+        HStack(spacing: AppSpacing.sm) {
+            if let icon = icon {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(AppColors.authBackground)
+                    .frame(width: 24)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: AppCornerRadius.pill))
-            .overlay(
-                RoundedRectangle(cornerRadius: AppCornerRadius.pill)
-                    .stroke(AppColors.authBackground, lineWidth: 1)
-            )
+
+            inputField
+
+            Button(action: toggleVisibility) {
+                Image(systemName: isSecureVisible ? "eye.slash.fill" : "eye.fill")
+                    .foregroundColor(AppColors.authBackground.opacity(0.7))
+                    .frame(width: 24, height: 24)
+            }
         }
-        .padding(.horizontal)
+        .padding()
+        .background(AppColors.authInputBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppCornerRadius.pill))
     }
 
     @ViewBuilder
@@ -40,8 +36,12 @@ struct SecureInputFieldView: View {
             TextField(placeholder, text: $text)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .foregroundColor(AppColors.authBackground)
+                .font(.system(size: 16))
         } else {
             SecureField(placeholder, text: $text)
+                .foregroundColor(AppColors.authBackground)
+                .font(.system(size: 16))
         }
     }
 

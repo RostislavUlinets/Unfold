@@ -17,10 +17,24 @@ struct AuthPageView: View {
                 VStack(spacing: 0) {
                     Spacer()
 
-                    Text("Hello & Welcome!")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.bottom, 40)
+                    VStack(spacing: AppSpacing.md) {
+                        Image(systemName: AppIcons.coffee)
+                            .font(.system(size: 52, weight: .medium))
+                            .foregroundColor(AppColors.authBackground)
+                            .frame(width: 110, height: 110)
+                            .background(Color.white)
+                            .clipShape(Circle())
+                            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+
+                        Text("Hello & Welcome!")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.white)
+
+                        Text("Sign in to your account")
+                            .font(.system(size: 16))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    .padding(.bottom, 40)
 
                     Spacer()
 

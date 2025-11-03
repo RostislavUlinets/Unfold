@@ -21,9 +21,14 @@ enum AppColors {
     /// Secondary brand color
     static let secondary = Color.green
 
-    /// Authentication background color
+    /// Authentication background color (dark brown)
     static let authBackground = Color("AuthBackground")
 
+    /// Authentication secondary color (light brown)
+    static let authSecondary = Color("AuthSecondary")
+
+    /// Authentication input field background (beige/cream)
+    static let authInputBackground = Color("AuthInputBackground")
 
     /// Background for bottom sheets and cards
     static let bottomSheet = Color("BottomSheet")
@@ -219,6 +224,7 @@ enum AppIcons {
     static let logout = "rectangle.portrait.and.arrow.right"
     static let email = "envelope.fill"
     static let lock = "lock.fill"
+    static let coffee = "safari.fill"
 
 
     static let success = "checkmark.circle.fill"
