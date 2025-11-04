@@ -37,19 +37,27 @@ jobs:
 
     - name: Run unit tests
       run: |
+        set -o pipefail
         xcodebuild test \
           -scheme Unfold \
           -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
           -enableCodeCoverage YES \
+          -resultBundlePath ./TestResults.xcresult \
           -only-testing:UnfoldTests \
           | xcpretty --color --simple
 
     - name: Generate code coverage report
+      if: success() || failure()
       run: |
-        xcrun xcresulttool get --format json --path $(find ~/Library/Developer/Xcode/DerivedData -name "*.xcresult" | head -n 1) > coverage.json
-        echo "Code coverage data generated"
+        if [ -d "./TestResults.xcresult" ]; then
+          xcrun xccov view --report --json ./TestResults.xcresult > coverage.json
+          echo "Code coverage data generated"
+        else
+          echo "No test results found, skipping coverage"
+        fi
 
     - name: Upload coverage reports
+      if: success() || failure()
       uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -62,8 +70,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-results
-        path: |
-          ~/Library/Developer/Xcode/DerivedData/**/Logs/Test/*.xcresult
+        path: ./TestResults.xcresult
         retention-days: 7
 
   lint:
