@@ -132,16 +132,67 @@ Location permissions are configured in `Info.plist`:
 
 ## 🧪 Testing
 
+[![Tests](https://github.com/RostislavUlinets/Unfold/actions/workflows/test.yml/badge.svg)](https://github.com/RostislavUlinets/Unfold/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/RostislavUlinets/Unfold/branch/main/graph/badge.svg)](https://codecov.io/gh/RostislavUlinets/Unfold)
+
+Unfold has comprehensive unit test coverage with **156 tests** covering utilities, validators, models, and controllers.
+
+### Test Coverage
+
+- **✅ 91 tests** - Utilities & Validators (EmailValidator, PasswordValidator, DeepLinkParser)
+- **✅ 14 tests** - Model Layer (User model with computed properties)
+- **✅ 30 tests** - AuthController (validation logic, state management)
+- **✅ 18 tests** - LocationController (location tracking, state management)
+- **✅ 13 tests** - PasswordResetController (email validation, error handling)
+- **✅ 33 tests** - PasswordResetConfirmationController (password validation, computed properties)
+
+### Running Tests
+
 ```bash
-# Run all tests
-xcodebuild test -scheme Unfold -destination 'platform=iOS Simulator,name=iPhone 15'
+# Run all unit tests
+xcodebuild test -scheme Unfold -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:UnfoldTests
 
-# Run unit tests only
-xcodebuild test -scheme Unfold -only-testing:UnfoldTests
+# Run specific test file
+xcodebuild test -scheme Unfold -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:UnfoldTests/EmailValidatorTests
 
-# Run UI tests only
+# Run with code coverage
+xcodebuild test -scheme Unfold -destination 'platform=iOS Simulator,name=iPhone 15' -enableCodeCoverage YES
+
+# Run UI tests (when available)
 xcodebuild test -scheme Unfold -only-testing:UnfoldUITests
 ```
+
+### Continuous Integration
+
+All pull requests and commits to `main` automatically run:
+- ✅ Full unit test suite
+- ✅ Code coverage reporting
+- ✅ SwiftLint code quality checks
+
+See [.github/workflows/test.yml](.github/workflows/test.yml) for CI configuration.
+
+### Test Structure
+
+```
+UnfoldTests/
+├── Utilities/          # Utility class tests (validators, parsers)
+├── Model/             # Model layer tests (User, etc.)
+├── Controller/        # Controller tests (Auth, Location, etc.)
+└── Helpers/           # Test helpers and constants
+```
+
+### Writing Tests
+
+Tests use the modern Swift Testing framework with `@Test` annotations:
+
+```swift
+@Test("Email validator accepts valid emails")
+func validEmail_returnsTrue() {
+    #expect(EmailValidator.isValid("user@example.com") == true)
+}
+```
+
+For testing best practices, see [TESTING.md](TESTING.md).
 
 ## 📖 Development
 
