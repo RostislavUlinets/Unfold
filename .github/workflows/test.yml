@@ -22,14 +22,68 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: List available simulators
-        run: xcrun simctl list devices available
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Resolve SPM dependencies
+        run: xcodebuild -resolvePackageDependencies -scheme Unfold
 
       - name: Run unit tests
         run: |
           set -o pipefail
           xcodebuild test \
             -scheme Unfold \
-            -destination 'platform=iOS Simulator,OS=18.1,name=iPhone 16' \
+            -destination 'platform=iOS Simulator,OS=18.4,name=iPhone 16 Pro' \
+            -enableCodeCoverage YES \
+            -resultBundlePath ./TestResults.xcresult \
             -only-testing:UnfoldTests \
             | xcpretty --color --simple
+
+      - name: Generate code coverage report
+        if: success() || failure()
+        run: |
+          if [ -d "./TestResults.xcresult" ]; then
+            xcrun xccov view --report --json ./TestResults.xcresult > coverage.json
+            echo "Code coverage data generated"
+          else
+            echo "No test results found, skipping coverage"
+          fi
+
+      - name: Upload coverage reports
+        if: success() || failure()
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.json
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ./TestResults.xcresult
+          retention-days: 7
+
+  lint:
+    name: SwiftLint
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: swiftlint lint --reporter github-actions-logging
+        continue-on-error: true
