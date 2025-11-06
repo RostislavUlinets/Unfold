@@ -15,7 +15,13 @@ final class UnfoldUITests: XCTestCase {
         // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
 
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+        // In UI tests it's important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+    }
+
+    func launchApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["UI-TESTING"]
+        return app
     }
 
     override func tearDownWithError() throws {
@@ -25,7 +31,7 @@ final class UnfoldUITests: XCTestCase {
     @MainActor
     func testExample() throws {
         // UI tests must launch the application that they test.
-        let app = XCUIApplication()
+        let app = launchApp()
         app.launch()
 
         // Use XCTAssert and related functions to verify your tests produce the correct results.
@@ -35,7 +41,7 @@ final class UnfoldUITests: XCTestCase {
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+            launchApp().launch()
         }
     }
 }
