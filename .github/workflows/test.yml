@@ -16,6 +16,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create dummy .env file
+        run: |
+          cat > .env << 'EOF'
+          # Dummy .env file for CI builds
+          # Unit tests use mock Supabase client and don't need real credentials
+          SUPABASE_URL=https://mock.supabase.co
+          SUPABASE_KEY=mock-key-for-ci-testing
+          EOF
+
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
 
