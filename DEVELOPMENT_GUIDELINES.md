@@ -13,7 +13,7 @@
 3. [Debugging & Maintainability](#debugging--maintainability)
 4. [Architectural Integration](#architectural-integration)
 5. [Controller/ViewModel Guidelines](#controllerviewmodel-guidelines)
-6. [Service Layer Best Practices](#service-layer-best-practices)
+6. [Controller Data Access Pattern](#controller-data-access-pattern)
 7. [Concurrency & Performance](#concurrency--performance)
 8. [Error Handling Patterns](#error-handling-patterns)
 9. [Testing Strategy](#testing-strategy)
@@ -154,11 +154,11 @@ Text("Caption").font(.system(size: AppTypography.caption))
 ///
 /// This controller follows MVC and SOLID principles:
 /// - Single Responsibility: Handles only password reset operations
-/// - Dependency Inversion: Depends on AuthServiceProtocol
+/// - Dependency Injection: Receives AuthController via initializer
 ///
 /// Usage:
 /// ```swift
-/// let controller = PasswordResetController(authService: service)
+/// let controller = PasswordResetController(authController: authController)
 /// await controller.resetPassword(email: "user@example.com")
 /// ```
 ```
@@ -224,9 +224,7 @@ let submitButton = Button(...)
 ┌─────────────────────────────────────┐
 │          View Layer (UI)            │  ← SwiftUI Views (declarative only)
 ├─────────────────────────────────────┤
-│    Controller/ViewModel Layer       │  ← Business logic, state management
-├─────────────────────────────────────┤
-│         Service Layer               │  ← External API abstractions
+│       Controller Layer              │  ← Business logic + data access ("fat")
 ├─────────────────────────────────────┤
 │          Model Layer                │  ← Data structures, entities
 └─────────────────────────────────────┘
@@ -245,16 +243,12 @@ let submitButton = Button(...)
 - Binds to Controller/ViewModel properties
 - Delegates actions to Controller
 
-**Controller/ViewModel:**
+**Controller:**
+- "Fat controllers" that own all business logic AND data access
 - Manages view state (`@Published` properties)
-- Coordinates between View and Services
-- Handles validation and business rules
-- Depends on Service protocols, not concrete implementations
-
-**Service:**
-- Abstracts external dependencies (Supabase, APIs)
-- Defined by protocols for testability
-- Concrete implementations injected via DI
+- Directly owns external dependencies (SupabaseClient)
+- Handles validation, business rules, and API calls
+- NO separate service layer in pure MVC
 
 ---
 
@@ -263,11 +257,12 @@ let submitButton = Button(...)
 ### Structure
 
 ```swift
-/// AuthController manages authentication state and coordinates auth operations.
+/// AuthController manages authentication state and handles all auth operations.
 ///
-/// Follows SOLID principles with dependency injection and protocol-based design.
+/// "Fat controller" pattern - owns SupabaseClient directly, no service layer.
 
-import SwiftUI
+import Foundation
+import Supabase
 
 @MainActor
 final class AuthController: ObservableObject {
@@ -284,19 +279,25 @@ final class AuthController: ObservableObject {
 
     // MARK: - Private Properties
 
-    private let authService: AuthServiceProtocol
-    private var authListenerToken: AuthStateListenerToken?
+    private let client: SupabaseClient
+    private var supabaseListener: AuthStateChangeListenerRegistration?
+
+    // MARK: - Public Properties
+
+    var supabaseClient: SupabaseClient {
+        client
+    }
 
     // MARK: - Initialization
 
-    /// Initialize with injected authentication service
-    init(authService: AuthServiceProtocol) {
-        self.authService = authService
+    /// Initialize with injected SupabaseClient
+    init(client: SupabaseClient) {
+        self.client = client
         setupAuthStateListener()
     }
 
     deinit {
-        cleanup()
+        supabaseListener?.remove()
     }
 
     // MARK: - Public Methods
@@ -308,23 +309,23 @@ final class AuthController: ObservableObject {
         }
 
         await performAuthOperation {
-            try await self.authService.signIn(email: email, password: password)
+            try await self.client.auth.signIn(email: email, password: password)
         }
     }
 
     // MARK: - Private Methods
 
     private func setupAuthStateListener() {
-        authListenerToken = authService.addAuthStateListener { [weak self] isAuthenticated in
+        supabaseListener = client.auth.onAuthStateChange { [weak self] _, session in
             Task { @MainActor in
-                self?.isAuthenticated = isAuthenticated
+                self?.isAuthenticated = (session != nil)
             }
         }
     }
 
     private func validateInputs(email: String, password: String) -> Bool {
         guard !email.isEmpty, !password.isEmpty else {
-            errorMessage = Strings.Auth.fillAllFields
+            errorMessage = "Please fill in all fields"
             return false
         }
         return true
@@ -344,12 +345,6 @@ final class AuthController: ObservableObject {
         isLoading = false
     }
 
-    private func cleanup() {
-        if let token = authListenerToken {
-            authService.removeAuthStateListener(token)
-        }
-    }
-
     private func logError(_ error: Error) {
         #if DEBUG
         print("❌ [AuthController] Error: \(error.localizedDescription)")
@@ -361,8 +356,18 @@ final class AuthController: ObservableObject {
 
 extension AuthController {
     static func createDefault() -> AuthController {
-        let authService = SupabaseAuthService.createFromEnvironment()
-        return AuthController(authService: authService)
+        let config = loadConfiguration()
+        let client = SupabaseClient(
+            supabaseURL: config.url,
+            supabaseKey: config.key
+        )
+        return AuthController(client: client)
+    }
+
+    private static func loadConfiguration() -> (url: URL, key: String) {
+        // Load from environment or Info.plist
+        // Implementation details...
+        fatalError("Configuration loading not shown for brevity")
     }
 }
 ```
@@ -374,14 +379,19 @@ extension AuthController {
 @MainActor
 final class HomeController: ObservableObject {
     @Published var items: [Item] = []
+    private let client: SupabaseClient
+
+    init(client: SupabaseClient) {
+        self.client = client
+    }
 }
 ```
 
 ✅ **Weak self in closures**
 ```swift
-service.addListener { [weak self] data in
+client.auth.onAuthStateChange { [weak self] _, session in
     Task { @MainActor in
-        self?.updateData(data)
+        self?.updateAuthState(session)
     }
 }
 ```
@@ -410,62 +420,59 @@ private func performOperation(_ operation: @escaping () async throws -> Void) as
 
 ---
 
-## 🔌 Service Layer Best Practices
+## 🔌 Controller Data Access Pattern
 
-### Protocol Definition
+### Fat Controller Approach
+
+Controllers directly own and interact with external dependencies:
 
 ```swift
-/// Protocol defining authentication service operations.
+/// AuthController - Owns SupabaseClient directly.
 ///
-/// Abstracts authentication to enable dependency injection and testing.
+/// "Fat controller" pattern - no service layer abstraction.
 
-protocol AuthServiceProtocol {
-    func signIn(email: String, password: String) async throws
-    func signUp(email: String, password: String) async throws
-    func signOut() async throws
-    func resetPassword(email: String) async throws
-    func getCurrentUserEmail() async -> String?
-    func isAuthenticated() async -> Bool
-}
-```
+import Foundation
+import Supabase
 
-### Concrete Implementation
+@MainActor
+final class AuthController: ObservableObject {
+    @Published var isAuthenticated = false
+    @Published var isLoading = false
+    @Published var errorMessage: String?
 
-```swift
-/// Concrete implementation using Supabase.
-
-final class SupabaseAuthService: AuthServiceProtocol {
     private let client: SupabaseClient
 
     init(client: SupabaseClient) {
         self.client = client
+        setupAuthStateListener()
     }
 
-    func signIn(email: String, password: String) async throws {
-        try await client.auth.signIn(email: email, password: password)
+    func login(email: String, password: String) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            try await client.auth.signIn(email: email, password: password)
+        } catch {
+            errorMessage = error.localizedDescription
+            logError(error)
+        }
+
+        isLoading = false
     }
 
     // ... other methods
 }
-
-// MARK: - Factory
-
-extension SupabaseAuthService {
-    static func createFromEnvironment() -> SupabaseAuthService {
-        let config = loadConfiguration()
-        let client = SupabaseClient(supabaseURL: config.url, supabaseKey: config.key)
-        return SupabaseAuthService(client: client)
-    }
-}
 ```
 
-### Service Best Practices
+### Controller Best Practices
 
-✅ **Use protocols for all services**
-✅ **Keep services stateless when possible**
-✅ **Handle errors at service level**
-✅ **Log operations in debug builds**
-✅ **Use factory methods for initialization**
+✅ **Controllers own external clients directly** (SupabaseClient, API clients, etc.)
+✅ **Keep state management in controllers** (`@Published` properties)
+✅ **Handle errors at controller level** with user-friendly messages
+✅ **Log operations in debug builds** (`#if DEBUG`)
+✅ **Use factory methods for initialization** (`createDefault()`)
+✅ **Inject dependencies via initializer** for testability
 
 ---
 
@@ -627,17 +634,17 @@ if let error = controller.errorMessage {
 @MainActor
 final class AuthControllerTests: XCTestCase {
     var sut: AuthController!
-    var mockService: MockAuthService!
+    var mockClient: MockSupabaseClient!
 
     override func setUp() {
         super.setUp()
-        mockService = MockAuthService()
-        sut = AuthController(authService: mockService)
+        mockClient = MockSupabaseClient()
+        sut = AuthController(client: mockClient)
     }
 
     func testLoginSuccess() async {
         // Given
-        mockService.shouldSucceed = true
+        mockClient.authShouldSucceed = true
 
         // When
         await sut.login(email: "test@test.com", password: "password")
@@ -649,8 +656,8 @@ final class AuthControllerTests: XCTestCase {
 
     func testLoginFailure() async {
         // Given
-        mockService.shouldSucceed = false
-        mockService.errorToThrow = AuthError.invalidCredentials
+        mockClient.authShouldSucceed = false
+        mockClient.errorToThrow = AuthError.invalidCredentials
 
         // When
         await sut.login(email: "test@test.com", password: "wrong")
@@ -662,21 +669,26 @@ final class AuthControllerTests: XCTestCase {
 }
 ```
 
-### Mock Services
+### Mock SupabaseClient
+
+For testing, create a protocol wrapper or mock the client:
 
 ```swift
-class MockAuthService: AuthServiceProtocol {
-    var shouldSucceed = true
-    var errorToThrow: Error?
+// Option 1: Protocol wrapper for testability
+protocol SupabaseClientProtocol {
+    var auth: SupabaseAuth { get }
+}
 
-    func signIn(email: String, password: String) async throws {
-        if !shouldSucceed {
-            throw errorToThrow ?? AuthError.invalidCredentials
-        }
-    }
+// Option 2: Mock controller directly
+class MockAuthController: ObservableObject {
+    @Published var isAuthenticated = false
+    @Published var isLoading = false
+    @Published var errorMessage: String?
 
-    func isAuthenticated() async -> Bool {
-        return shouldSucceed
+    var loginShouldSucceed = true
+
+    func login(email: String, password: String) async {
+        isAuthenticated = loginShouldSucceed
     }
 }
 ```
@@ -710,21 +722,14 @@ class MockAuthService: AuthServiceProtocol {
 
 ```
 Unfold/
-├── Models/
+├── Model/
 │   ├── User.swift
 │   ├── TabItem.swift
-│   └── MapRegion.swift
+│   └── GridCell.swift
 │
-├── Services/
-│   ├── AuthServiceProtocol.swift
-│   ├── SupabaseAuthService.swift
-│   ├── MapServiceProtocol.swift
-│   └── MockServices/
-│       └── MockAuthService.swift
-│
-├── Controller/
+├── Controller/                  # Fat controllers (own SupabaseClient)
 │   ├── AuthController.swift
-│   ├── HomeController.swift
+│   ├── MapController.swift
 │   └── PasswordResetController.swift
 │
 ├── View/
@@ -737,23 +742,24 @@ Unfold/
 │   │       └── AuthHeaderView.swift
 │   ├── Home/
 │   │   ├── HomePageView.swift
-│   │   ├── SideMenuView.swift
-│   │   └── Components/
-│   │       ├── ControlButton.swift
-│   │       └── TabButton.swift
+│   │   ├── MapView.swift
+│   │   └── SideMenuView.swift
 │   └── Shared/
-│       ├── ErrorMessageView.swift
-│       ├── InputFieldView.swift
-│       └── ButtonStyles/
-│           ├── PrimaryButtonStyle.swift
-│           └── SecondaryButtonStyle.swift
+│       └── Components/
+│           ├── ErrorMessageView.swift
+│           ├── InputFieldView.swift
+│           ├── ControlButton.swift
+│           └── TabButton.swift
 │
-├── Utils/
-│   ├── Constants.swift
-│   ├── Extensions/
+├── Shared/
+│   ├── Components/             # Reusable UI components
+│   ├── Extensions/             # Swift extensions
 │   │   ├── Color+Extensions.swift
 │   │   └── View+Extensions.swift
-│   └── Helpers/
+│   └── Utils/                  # Utilities, validators, constants
+│       ├── Constants.swift
+│       ├── PasswordValidator.swift
+│       └── DeepLinkParser.swift
 │
 └── UnfoldApp.swift
 ```
@@ -764,7 +770,7 @@ Unfold/
 |------|-----------|---------|
 | Views | `PascalCaseView` | `HomePageView`, `ControlButton` |
 | Controllers | `PascalCaseController` | `AuthController`, `HomeController` |
-| Protocols | `PascalCaseProtocol` | `AuthServiceProtocol` |
+| Protocols | `PascalCaseProtocol` | `SupabaseClientProtocol` (for testing) |
 | Models | `PascalCase` | `User`, `TabItem` |
 | Constants | `camelCase` in enums | `AppColors.primary`, `AppSpacing.md` |
 | Functions | `camelCase` | `fetchUserData()`, `validateEmail()` |
@@ -776,12 +782,14 @@ Unfold/
 
 When adding a new feature, ensure:
 
-- [ ] Model defined in `/Models`
-- [ ] Service protocol created if needed
-- [ ] Service implementation with dependency injection
-- [ ] Controller with `@Published` properties
-- [ ] View components separated into individual files
-- [ ] Constants added to `Constants.swift`
+- [ ] Model defined in `/Model` (data structures only)
+- [ ] Controller created in `/Controller` with:
+  - [ ] SupabaseClient injected via initializer
+  - [ ] `@Published` properties for state
+  - [ ] `@MainActor` annotation
+  - [ ] Factory method (`createDefault()`)
+- [ ] View components in `/View` (UI only, no logic)
+- [ ] Constants added to `Shared/Utils/Constants.swift`
 - [ ] Documentation added to all files
 - [ ] Unit tests written for controller
 - [ ] Preview providers added to all views

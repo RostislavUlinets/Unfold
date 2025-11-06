@@ -51,15 +51,16 @@ The application follows the **MVC (Model-View-Controller)** pattern with clear s
 
 ### Controller
 
-- **Purpose**: Business logic, state management, and coordination
+- **Purpose**: Business logic, state management, coordination, AND data access
 - **Location**: `/Controller`
 - **Examples**: `AuthController.swift`, `PasswordResetController.swift`
 - **Characteristics**:
   - Conforms to `ObservableObject`
   - Marked with `@MainActor` for UI updates
-  - Depends on service protocols (not concrete implementations)
+  - **"Fat controllers" - directly owns external dependencies (SupabaseClient)**
   - Publishes state via `@Published` properties
-  - Handles validation and error handling
+  - Handles validation, error handling, and API calls
+  - NO separate service layer in pure MVC
 
 ## SOLID Principles
 
@@ -67,59 +68,66 @@ The application follows the **MVC (Model-View-Controller)** pattern with clear s
 
 Each class/struct has one reason to change:
 
-- `AuthController`: Manages only authentication state
-- `SupabaseAuthService`: Handles only Supabase auth operations
+- `AuthController`: Manages authentication state AND handles Supabase auth operations
 - Views: Handle only UI presentation
+- Models: Contain only data structures
 
 ### Open/Closed Principle (OCP)
 
 Components are open for extension, closed for modification:
 
-- `AuthServiceProtocol` allows new implementations without changing existing code
+- Controllers can be subclassed or extended without changing existing code
 - Views can be extended via ViewModifiers
 - Constants can be extended without modifying existing definitions
 
 ### Liskov Substitution Principle (LSP)
 
-Protocol-based design ensures substitutability:
+Controllers can be mocked for testing:
 
 ```swift
-let authService: AuthServiceProtocol = SupabaseAuthService.createFromEnvironment()
-let authService: AuthServiceProtocol = MockAuthService() // For testing
+// Production
+let authController = AuthController(client: SupabaseClient(...))
+
+// Testing
+let mockController = MockAuthController()
 ```
 
-Both implementations can be used interchangeably.
+Both can be used interchangeably in views via `@EnvironmentObject`.
 
 ### Interface Segregation Principle (ISP)
 
-Focused, minimal protocols:
+Focused, single-purpose controllers:
 
-- `AuthServiceProtocol`: Contains only authentication-related methods
-- No "god protocols" with unrelated methods
+- `AuthController`: Handles only authentication
+- `PasswordResetController`: Handles only password reset flow
+- Controllers may depend on other controllers when needed
+- No "god controllers" with unrelated responsibilities
 
 ### Dependency Inversion Principle (DIP)
 
-High-level modules depend on abstractions:
+Dependencies are injected via initializers:
 
 ```swift
-// AuthController depends on protocol, not concrete implementation
+// AuthController receives SupabaseClient via injection
 class AuthController {
-    private let authService: AuthServiceProtocol  // Abstraction
+    private let client: SupabaseClient  // Injected dependency
 
-    init(authService: AuthServiceProtocol) {
-        self.authService = authService
+    init(client: SupabaseClient) {
+        self.client = client
     }
 }
 ```
+
+This allows for dependency substitution during testing.
 
 ## Project Structure
 
 ```
 Unfold/
-├── Models/                      # Data models and entities
+├── Model/                       # Data models and entities
 │   └── User.swift              # User domain model
 │
-├── Views/                       # SwiftUI views (UI layer)
+├── View/                        # SwiftUI views (UI layer)
 │   ├── Root/
 │   │   └── RootView.swift      # Root navigation coordinator
 │   ├── Auth/
@@ -134,38 +142,31 @@ Unfold/
 │   └── Splash/
 │       └── SplashView.swift    # Launch screen
 │
-├── Controller/                  # Business logic layer
-│   ├── AuthController.swift    # Authentication state manager
+├── Controller/                  # Business logic + data access layer
+│   ├── AuthController.swift    # Authentication ("fat controller" owns SupabaseClient)
 │   └── PasswordResetController.swift
 │
-├── Services/                    # External service abstractions
-│   ├── AuthServiceProtocol.swift      # Auth service contract
-│   └── SupabaseAuthService.swift      # Supabase implementation
-│
-├── Utils/                       # Utilities and helpers
-│   └── Constants.swift         # App-wide constants
+├── Shared/                      # Reusable components & utilities
+│   ├── Components/             # Shared UI elements
+│   ├── Extensions/             # Swift extensions
+│   └── Utils/                  # Validators, parsers, constants
 │
 └── UnfoldApp.swift             # App entry point
 ```
 
 ## Dependency Injection
 
-### Service Layer
+### Fat Controller Pattern
 
-All external dependencies are abstracted through protocols:
+Controllers directly own their external dependencies (no service layer):
 
-1. **Protocol Definition** (`AuthServiceProtocol`)
-   - Defines contract for authentication operations
-   - Used by controllers
+1. **SupabaseClient Injection**
+   - Controllers receive `SupabaseClient` via initializer
+   - Controllers call Supabase APIs directly
 
-2. **Concrete Implementation** (`SupabaseAuthService`)
-   - Implements the protocol
-   - Handles Supabase-specific logic
-   - Can be swapped with mock for testing
-
-3. **Factory Pattern**
-   - `SupabaseAuthService.createFromEnvironment()`: Creates service from env config
-   - `AuthController.createDefault()`: Creates controller with default service
+2. **Factory Pattern**
+   - `AuthController.createDefault()`: Creates controller with configured client
+   - Configuration loaded from environment/Info.plist
 
 ### Injection Flow
 
@@ -173,10 +174,11 @@ All external dependencies are abstracted through protocols:
 // UnfoldApp.swift - Root dependency injection
 @StateObject private var authController = AuthController.createDefault()
 
-// Factory creates dependencies
+// Factory creates controller with SupabaseClient
 static func createDefault() -> AuthController {
-    let authService = SupabaseAuthService.createFromEnvironment()
-    return AuthController(authService: authService)
+    let config = loadConfiguration()
+    let client = SupabaseClient(supabaseURL: config.url, supabaseKey: config.key)
+    return AuthController(client: client)
 }
 ```
 
@@ -189,9 +191,9 @@ User Action (View)
     ↓
 Controller Method (e.g., login())
     ↓
-Service Protocol Method
+Controller calls SupabaseClient directly
     ↓
-Concrete Service (Supabase)
+Supabase API call
     ↓
 Auth State Change Event
     ↓
@@ -206,27 +208,26 @@ SwiftUI View Updates Automatically
 2. User taps "Login" button
 3. View calls `authController.login(email:password:)`
 4. Controller validates inputs
-5. Controller calls `authService.signIn()`
-6. Service authenticates with Supabase
-7. Supabase triggers auth state change
-8. Service notifies listeners
-9. Controller updates `isAuthenticated`
-10. SwiftUI updates UI automatically
+5. Controller calls `client.auth.signIn()` directly
+6. Supabase authenticates user
+7. Supabase triggers auth state change event
+8. Controller's listener updates `isAuthenticated`
+9. SwiftUI updates UI automatically via `@Published`
 
 ## Testing Strategy
 
 ### Unit Testing
 
-- **Controllers**: Test with mock services
-- **Services**: Test protocol compliance
-- **Models**: Test data transformations
+- **Controllers**: Test with mock SupabaseClient or protocol wrappers
+- **Models**: Test data transformations and validation
+- **Views**: Test with mock controllers
 
 Example:
 
 ```swift
 func testLoginSuccess() async {
-    let mockService = MockAuthService()
-    let controller = AuthController(authService: mockService)
+    let mockClient = MockSupabaseClient()
+    let controller = AuthController(client: mockClient)
 
     await controller.login(email: "test@test.com", password: "password")
 
@@ -261,7 +262,7 @@ func testLoginSuccess() async {
 - **Types**: PascalCase (`AuthController`, `User`)
 - **Properties/Methods**: camelCase (`isAuthenticated`, `login()`)
 - **Constants**: camelCase in enums (`AppColors.primary`)
-- **Protocols**: Descriptive with "Protocol" suffix (`AuthServiceProtocol`)
+- **Protocols**: Descriptive with "Protocol" suffix when needed (e.g., for wrappers)
 
 ### Documentation
 
@@ -312,45 +313,45 @@ struct NewFeature: Identifiable {
 }
 ```
 
-### 2. Create Service Protocol (if needed)
-
-```swift
-// Services/NewFeatureServiceProtocol.swift
-protocol NewFeatureServiceProtocol {
-    func fetchData() async throws -> [NewFeature]
-}
-```
-
-### 3. Implement Service
-
-```swift
-// Services/SupabaseNewFeatureService.swift
-final class SupabaseNewFeatureService: NewFeatureServiceProtocol {
-    // ... implementation
-}
-```
-
-### 4. Create Controller
+### 2. Create Controller
 
 ```swift
 // Controller/NewFeatureController.swift
 @MainActor
 final class NewFeatureController: ObservableObject {
     @Published var items: [NewFeature] = []
-    private let service: NewFeatureServiceProtocol
+    private let client: SupabaseClient
 
-    init(service: NewFeatureServiceProtocol) {
-        self.service = service
+    init(client: SupabaseClient) {
+        self.client = client
+    }
+
+    func fetchData() async {
+        // Call Supabase directly
+        do {
+            let data = try await client.from("table").select().execute()
+            // Process data...
+        } catch {
+            // Handle error...
+        }
     }
 }
 ```
 
-### 5. Build View
+### 3. Build View
 
 ```swift
 // View/NewFeature/NewFeatureView.swift
 struct NewFeatureView: View {
+    @EnvironmentObject var authController: AuthController
     @StateObject private var controller: NewFeatureController
+
+    init() {
+        // Controller will get SupabaseClient from authController
+        _controller = StateObject(wrappedValue: NewFeatureController(
+            client: authController.supabaseClient
+        ))
+    }
 
     var body: some View {
         // ... UI
@@ -358,11 +359,11 @@ struct NewFeatureView: View {
 }
 ```
 
-### 6. Add Constants
+### 4. Add Constants
 
-Update `Constants.swift` with any new strings, colors, or dimensions.
+Update `Shared/Utils/Constants.swift` with any new strings, colors, or dimensions.
 
-### 7. Write Tests
+### 5. Write Tests
 
 Create unit tests for controller and integration tests for the feature.
 

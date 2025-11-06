@@ -11,14 +11,10 @@ Unfold is an iOS app that gamifies real-world exploration by revealing a fog-cov
 
 ## 📱 Screenshots
 
-<div align="center">
-  <img src="screenshots/auth.png" width="200" alt="Authentication Screen"/>
-  <img src="screenshots/map.png" width="200" alt="Map View"/>
-  <img src="screenshots/exploration.png" width="200" alt="Exploration Progress"/>
-  <img src="screenshots/profile.png" width="200" alt="User Profile"/>
-</div>
-
-> **Note**: To add screenshots, run the app in Xcode simulator, capture screens (⌘+S), and save them to a `screenshots/` folder.
+> Screenshots coming soon! To contribute screenshots:
+> 1. Run the app in Xcode simulator
+> 2. Capture screens (⌘+S) showing: Authentication, Map View, Fog Exploration
+> 3. Save to `screenshots/` folder and update this README
 
 ## ✨ Features
 
@@ -31,14 +27,16 @@ Unfold is an iOS app that gamifies real-world exploration by revealing a fog-cov
 ### 🗺️ Map & Exploration
 - Real-time GPS location tracking
 - Interactive map centered on user location
-- Zoom controls (+/-) for map navigation
+- Fog of war overlay with frosted glass effect
+- 50m grid-based exploration system
+- Automatic fog clearing in 150m radius
 - Location permission handling
 
-### 🎮 Gamification (Coming Soon)
-- Fog of war/exploration overlay
-- Grid-based exploration tracking
-- Progress statistics and achievements
-- Exploration percentage tracking
+### 🎮 Gamification (In Progress)
+- ✅ Fog of war/exploration overlay (implemented)
+- ✅ Grid-based exploration tracking (implemented)
+- 🚧 Progress statistics and achievements (coming soon)
+- 🚧 Exploration percentage tracking (coming soon)
 
 ### 🎨 Modern UI/UX
 - Clean, minimalist design with brown/tan theme
@@ -228,17 +226,28 @@ This project includes Claude Code instructions in [CLAUDE.md](CLAUDE.md). When u
 
 ## 🗺️ Roadmap
 
+### Phase 1: Core Features ✅
 - [x] User authentication (email/password)
 - [x] Password reset with deep linking
 - [x] Real-time location tracking
 - [x] Interactive map view
-- [ ] Fog of exploration overlay
-- [ ] Grid-based exploration tracking
-- [ ] Social login (Google, Apple)
-- [ ] Exploration statistics
+- [x] Fog of exploration overlay
+- [x] Grid-based exploration tracking (50m cells)
+- [x] Comprehensive test suite (156 tests)
+- [x] CI/CD pipeline with automated testing
+
+### Phase 2: In Progress 🚧
+- [ ] Exploration persistence (save explored cells to Supabase)
+- [ ] User profile with statistics
+- [ ] Exploration percentage tracking
 - [ ] Achievement system
+
+### Phase 3: Future Enhancements 🔮
+- [ ] Social login (Google, Apple)
 - [ ] Share exploration progress
+- [ ] Friends & social features
 - [ ] Dark mode support
+- [ ] Offline map caching
 
 ## 🤝 Contributing
 
