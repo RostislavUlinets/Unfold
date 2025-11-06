@@ -1,0 +1,51 @@
+# Xcode
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+
+# User-specific files
+*.moved-aside
+*.xcuserdatad
+*.xcscmblueprint
+
+# Swift Package Manager
+.build/
+Packages/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Environment files
+.env
+.env.*
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+
+# Logs
+*.log
+*.xcactivitylog
+
+# Test Results
+*.xcresult
+TestResults*.xcresult/
+
+# macOS
+.DS_Store
+
+# IDE helpers
+.idea/
+.vscode/
+*.swp
+*.swo
+*.tmp
+*.bak
+
