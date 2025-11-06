@@ -1,254 +1,100 @@
 import Foundation
 import Supabase
-@testable import Unfold
 
-/// Mock SupabaseClient for testing authentication flows
 @MainActor
 final class MockSupabaseClient {
 
-    // MARK: - Mock Configuration
-
     var shouldSucceed = true
     var mockError: Error?
-    var mockSession: Session?
     var mockUser: Supabase.User?
+    var mockSession: Session?
 
-    // MARK: - Call Tracking
+    private func createMockAuthResponse() throws -> AuthResponse {
+        let userJSON: [String: Any] = [
+            "id": "test-user-id",
+            "email": "test@example.com",
+            "app_metadata": [:],
+            "user_metadata": [:],
+            "aud": "authenticated",
+            "created_at": "2024-01-01T00:00:00Z"
+        ]
 
-    private(set) var signInCalled = false
-    private(set) var signUpCalled = false
-    private(set) var signOutCalled = false
-    private(set) var resetPasswordCalled = false
-    private(set) var verifyOTPCalled = false
-    private(set) var updateUserCalled = false
-    private(set) var signInWithOAuthCalled = false
+        let sessionJSON: [String: Any] = [
+            "access_token": "mock-access-token",
+            "token_type": "bearer",
+            "expires_in": 3600,
+            "refresh_token": "mock-refresh-token",
+            "user": userJSON
+        ]
 
-    private(set) var lastSignInEmail: String?
-    private(set) var lastSignInPassword: String?
-    private(set) var lastSignUpEmail: String?
-    private(set) var lastSignUpPassword: String?
-    private(set) var lastResetEmail: String?
-    private(set) var lastOAuthProvider: Provider?
-    private(set) var lastVerifyOTPType: EmailOTPType?
-    private(set) var lastUpdateAttributes: UserAttributes?
+        let responseJSON: [String: Any] = [
+            "user": userJSON,
+            "session": sessionJSON
+        ]
 
-    // MARK: - Auth State Management
+        let data = try JSONSerialization.data(withJSONObject: responseJSON)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(AuthResponse.self, from: data)
+    }
 
-    private var authStateCallback: ((AuthChangeEvent, Session?) -> Void)?
-
-    // MARK: - Mock Auth Methods
-
-    func signIn(email: String, password: String) async throws -> Session {
-        signInCalled = true
-        lastSignInEmail = email
-        lastSignInPassword = password
-
-        if let error = mockError, !shouldSucceed {
-            throw error
+    func signIn(email: String, password: String) async throws -> AuthResponse {
+        if !shouldSucceed {
+            throw mockError ?? NSError(domain: "MockAuth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Mock sign in failed"])
         }
-
-        let session = mockSession ?? createMockSession(email: email)
-        triggerAuthStateChange(.signedIn, session: session)
-        return session
+        return try createMockAuthResponse()
     }
 
     func signUp(email: String, password: String) async throws -> AuthResponse {
-        signUpCalled = true
-        lastSignUpEmail = email
-        lastSignUpPassword = password
-
-        if let error = mockError, !shouldSucceed {
-            throw error
+        if !shouldSucceed {
+            throw mockError ?? NSError(domain: "MockAuth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Mock sign up failed"])
         }
-
-        let user = mockUser ?? createMockUser(email: email)
-        let session = mockSession ?? createMockSession(email: email)
-        triggerAuthStateChange(.signedIn, session: session)
-
-        return AuthResponse(user: user, session: session)
+        return try createMockAuthResponse()
     }
 
     func signOut() async throws {
-        signOutCalled = true
-
-        if let error = mockError, !shouldSucceed {
-            throw error
+        if !shouldSucceed {
+            throw mockError ?? NSError(domain: "MockAuth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Mock sign out failed"])
         }
-
-        triggerAuthStateChange(.signedOut, session: nil)
     }
 
-    func resetPasswordForEmail(_ email: String, redirectTo: URL) async throws {
-        resetPasswordCalled = true
-        lastResetEmail = email
-
-        if let error = mockError, !shouldSucceed {
-            throw error
+    func resetPasswordForEmail(_ email: String, redirectTo: URL?) async throws {
+        if !shouldSucceed {
+            throw mockError ?? NSError(domain: "MockAuth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Mock password reset failed"])
         }
     }
 
     func verifyOTP(tokenHash: String, type: EmailOTPType) async throws -> AuthResponse {
-        verifyOTPCalled = true
-        lastVerifyOTPType = type
-
-        if let error = mockError, !shouldSucceed {
-            throw error
+        if !shouldSucceed {
+            throw mockError ?? NSError(domain: "MockAuth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Mock OTP verification failed"])
         }
-
-        let user = mockUser ?? createMockUser(email: "verified@example.com")
-        let session = mockSession ?? createMockSession(email: "verified@example.com")
-
-        return AuthResponse(user: user, session: session)
+        return try createMockAuthResponse()
     }
 
     func verifyOTP(email: String, token: String, type: EmailOTPType) async throws -> AuthResponse {
-        verifyOTPCalled = true
-        lastVerifyOTPType = type
+        if !shouldSucceed {
+            throw mockError ?? NSError(domain: "MockAuth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Mock OTP verification failed"])
+        }
+        return try createMockAuthResponse()
+    }
 
-        if let error = mockError, !shouldSucceed {
-            throw error
+    func update(user: UserAttributes) async throws -> Supabase.User {
+        if !shouldSucceed {
+            throw mockError ?? NSError(domain: "MockAuth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Mock user update failed"])
         }
 
-        let user = mockUser ?? createMockUser(email: email.isEmpty ? "verified@example.com" : email)
-        let session = mockSession ?? createMockSession(email: email.isEmpty ? "verified@example.com" : email)
+        let userJSON: [String: Any] = [
+            "id": "test-user-id",
+            "email": "test@example.com",
+            "app_metadata": [:],
+            "user_metadata": [:],
+            "aud": "authenticated",
+            "created_at": "2024-01-01T00:00:00Z"
+        ]
 
-        return AuthResponse(user: user, session: session)
-    }
-
-    func updateUser(attributes: UserAttributes) async throws -> Supabase.User {
-        updateUserCalled = true
-        lastUpdateAttributes = attributes
-
-        if let error = mockError, !shouldSucceed {
-            throw error
-        }
-
-        return mockUser ?? createMockUser(email: "updated@example.com")
-    }
-
-    func signInWithOAuth(provider: Provider) async throws {
-        signInWithOAuthCalled = true
-        lastOAuthProvider = provider
-
-        if let error = mockError, !shouldSucceed {
-            throw error
-        }
-
-        let session = mockSession ?? createMockSession(email: "\(provider.rawValue)@example.com")
-        triggerAuthStateChange(.signedIn, session: session)
-    }
-
-    func getSession() async throws -> Session {
-        if let session = mockSession {
-            return session
-        }
-
-        throw NSError(domain: "MockSupabase", code: 401, userInfo: [NSLocalizedDescriptionKey: "No active session"])
-    }
-
-    // MARK: - Auth State Listener
-
-    func onAuthStateChange(callback: @escaping (AuthChangeEvent, Session?) -> Void) -> MockAuthStateChangeRegistration {
-        authStateCallback = callback
-
-        // Trigger initial session event
-        triggerAuthStateChange(.initialSession, session: mockSession)
-
-        return MockAuthStateChangeRegistration()
-    }
-
-    func triggerAuthStateChange(_ event: AuthChangeEvent, session: Session?) {
-        authStateCallback?(event, session)
-    }
-
-    // MARK: - Helper Methods
-
-    private func createMockUser(email: String) -> Supabase.User {
-        return Supabase.User(
-            id: UUID(),
-            appMetadata: [:],
-            userMetadata: [:],
-            aud: "authenticated",
-            createdAt: Date(),
-            updatedAt: Date(),
-            email: email
-        )
-    }
-
-    private func createMockSession(email: String) -> Session {
-        let user = createMockUser(email: email)
-        return Session(
-            accessToken: "mock-access-token",
-            tokenType: "bearer",
-            expiresIn: 3600,
-            expiresAt: Date().addingTimeInterval(3600).timeIntervalSince1970,
-            refreshToken: "mock-refresh-token",
-            user: user
-        )
-    }
-
-    // MARK: - Reset Methods
-
-    func reset() {
-        shouldSucceed = true
-        mockError = nil
-        mockSession = nil
-        mockUser = nil
-
-        signInCalled = false
-        signUpCalled = false
-        signOutCalled = false
-        resetPasswordCalled = false
-        verifyOTPCalled = false
-        updateUserCalled = false
-        signInWithOAuthCalled = false
-
-        lastSignInEmail = nil
-        lastSignInPassword = nil
-        lastSignUpEmail = nil
-        lastSignUpPassword = nil
-        lastResetEmail = nil
-        lastOAuthProvider = nil
-        lastVerifyOTPType = nil
-        lastUpdateAttributes = nil
-    }
-}
-
-// MARK: - Mock Auth State Change Registration
-
-final class MockAuthStateChangeRegistration {
-    func remove() {
-        // Mock implementation - does nothing
-    }
-}
-
-// MARK: - Mock Errors
-
-enum MockSupabaseError: Error, LocalizedError {
-    case invalidCredentials
-    case userAlreadyExists
-    case invalidToken
-    case networkError
-    case passwordTooWeak
-    case samePassword
-    case custom(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidCredentials:
-            return "Invalid login credentials"
-        case .userAlreadyExists:
-            return "User already registered"
-        case .invalidToken:
-            return "Invalid or expired token"
-        case .networkError:
-            return "Network connection failed"
-        case .passwordTooWeak:
-            return "Password is too weak"
-        case .samePassword:
-            return "New password cannot be the same as the old password"
-        case .custom(let message):
-            return message
-        }
+        let data = try JSONSerialization.data(withJSONObject: userJSON)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(Supabase.User.self, from: data)
     }
 }

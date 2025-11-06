@@ -34,6 +34,10 @@ fastlane/screenshots/**/*.png
 *.log
 *.xcactivitylog
 
+# Test Results
+*.xcresult
+TestResults*.xcresult/
+
 # macOS
 .DS_Store
 

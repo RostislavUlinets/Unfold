@@ -300,6 +300,21 @@ final class AuthController: ObservableObject {
 
 extension AuthController {
     static func createDefault() -> AuthController {
+        // Check if running in UI test mode
+        let isUITesting = ProcessInfo.processInfo.arguments.contains("UI-TESTING")
+
+        if isUITesting {
+            #if DEBUG
+            print("🧪 [Auth] Running in UI test mode - using mock Supabase configuration")
+            #endif
+
+            // Use mock URLs for UI testing to avoid fatal error
+            let mockURL = URL(string: "https://mock.supabase.co")!
+            let mockKey = "mock-anon-key-for-ui-testing"
+            let client = SupabaseClient(supabaseURL: mockURL, supabaseKey: mockKey)
+            return AuthController(client: client)
+        }
+
         let urlString =
             ProcessInfo.processInfo.environment["SUPABASE_URL"]
             ?? Bundle.main.infoDictionary?["SUPABASE_URL"] as? String
