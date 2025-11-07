@@ -11,10 +11,15 @@ Unfold is an iOS app that gamifies real-world exploration by revealing a fog-cov
 
 ## 📱 Screenshots
 
-> Screenshots coming soon! To contribute screenshots:
-> 1. Run the app in Xcode simulator
-> 2. Capture screens (⌘+S) showing: Authentication, Map View, Fog Exploration
-> 3. Save to `screenshots/` folder and update this README
+<div align="center">
+  <img src="screenshots/auth.png" width="250" alt="Authentication Screen" />
+  <img src="screenshots/map.png" width="250" alt="Map View with Fog" />
+  <img src="screenshots/reset_password.png" width="250" alt="Password Reset" />
+</div>
+
+<div align="center">
+  <i>Authentication • Interactive Map • Password Reset</i>
+</div>
 
 ## ✨ Features
 
